@@ -14,7 +14,7 @@ This project is intentionally small:
 ```bash
 ixfdoc read <url-or-file>... --out-dir ./out --expand-sheets
 ixfdoc cookies export --provider auto --output /tmp/ixunfei_profile_explorer_cookies.json
-ixfdoc doctor --json
+ixfdoc doctor --json --cookies /tmp/ixunfei_profile_explorer_cookies.json
 ```
 
 ## Current Status
@@ -22,10 +22,11 @@ ixfdoc doctor --json
 The initial package skeleton is in place with:
 
 - CLI contract and JSON error handling foundation.
+- `doctor` diagnostics for runtime and cookie metadata without printing cookie values.
 - macOS LarkShell cookie export via local Chromium profile data and Keychain.
 - Local Markdown input support.
 - Ported remote reader functions from the original skill.
-- A first pure docx client-vars to Markdown converter.
+- A pure docx client-vars to Markdown converter with page titles, lists, sheet markers, resource markers, callouts, and quote structure.
 - Codex and Claude Code skill wrappers.
 
 Remote reader parity with the original skill is being migrated incrementally.
@@ -36,6 +37,7 @@ On macOS, export the local i讯飞/LarkShell desktop session cookies before read
 
 ```bash
 ixfdoc cookies export --provider auto --output /tmp/ixunfei_profile_explorer_cookies.json
+ixfdoc doctor --json --cookies /tmp/ixunfei_profile_explorer_cookies.json
 ixfdoc read "<private-i讯飞-link>" --cookies /tmp/ixunfei_profile_explorer_cookies.json --out-dir ./out --expand-sheets
 ```
 

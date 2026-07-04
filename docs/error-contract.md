@@ -21,6 +21,6 @@ Agents should parse only the final JSON line. Human-readable text may appear bef
 
 - `usage.bad_args`
 - `cookie.cookie_file_missing`
+- `cookie.cookie_export_failed`
 
 More subtypes will be added as remote reading, cookie providers, and diagnostics mature.
-
