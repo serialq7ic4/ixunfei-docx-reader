@@ -25,3 +25,10 @@ Read the last line of `stderr` as JSON:
 
 Follow `hint`; do not guess around authentication or cookie failures.
 
+For cookie-related errors, export the local desktop session first:
+
+```bash
+ixfdoc cookies export --provider auto --output /tmp/ixunfei_profile_explorer_cookies.json
+```
+
+Then retry the read command with `--cookies /tmp/ixunfei_profile_explorer_cookies.json`.

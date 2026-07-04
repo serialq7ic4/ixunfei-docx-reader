@@ -23,9 +23,16 @@ ixfdoc read "<url-1>" "<url-2>" "/path/to/local.md" --out-dir /tmp/ixfdoc-extrac
 
 If a command exits non-zero, parse the final line of `stderr` as JSON and follow `error.hint`. Do not parse human-readable prose.
 
+If the error subtype is `cookie_file_missing` or `cookie_export_failed`, run:
+
+```bash
+ixfdoc cookies export --provider auto --output /tmp/ixunfei_profile_explorer_cookies.json
+```
+
+Then retry the read command with `--cookies /tmp/ixunfei_profile_explorer_cookies.json`.
+
 ## Safety
 
 - Treat cookie files as secrets.
 - Do not print cookie values.
 - Generated Markdown/TSV may contain private document content.
-
