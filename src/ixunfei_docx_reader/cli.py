@@ -4,17 +4,26 @@ import argparse
 import json
 import platform
 import re
+import sqlite3
 import sys
 from pathlib import Path
 from typing import NoReturn
 
 from ixunfei_docx_reader import __version__
+from ixunfei_docx_reader.cookies.macos_larkshell import (
+    DEFAULT_APP_SUPPORT,
+    DEFAULT_HOST_LIKE,
+    DEFAULT_KEYCHAIN_ACCOUNT,
+    DEFAULT_KEYCHAIN_SERVICE,
+    export_cookies as export_macos_larkshell_cookies,
+)
 from ixunfei_docx_reader.reader import DEFAULT_COOKIES, DEFAULT_SPACE_API, read_sources
 
 
 EXIT_CODES = {
     "bad_args": 2,
     "cookie_file_missing": 5,
+    "cookie_export_failed": 6,
 }
 
 
@@ -73,6 +82,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor = subparsers.add_parser("doctor", help="Print local diagnostic information.")
     doctor.add_argument("--json", action="store_true", dest="as_json")
+
+    cookies = subparsers.add_parser("cookies", help="Manage local session cookies.")
+    cookie_subparsers = cookies.add_subparsers(dest="cookies_command")
+    cookie_subparsers.required = True
+    export = cookie_subparsers.add_parser("export", help="Export local LarkShell cookies.")
+    export.add_argument("--provider", default="auto", choices=["auto", "macos-larkshell"])
+    export.add_argument("--output", default=DEFAULT_COOKIES)
+    export.add_argument("--app-support", default=DEFAULT_APP_SUPPORT)
+    export.add_argument("--cookies-db", default="")
+    export.add_argument("--host-like", default=DEFAULT_HOST_LIKE)
+    export.add_argument("--keychain-service", default=DEFAULT_KEYCHAIN_SERVICE)
+    export.add_argument("--keychain-account", default=DEFAULT_KEYCHAIN_ACCOUNT)
 
     return parser
 
@@ -187,6 +208,43 @@ def run_doctor(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_cookies(args: argparse.Namespace) -> int:
+    if args.cookies_command == "export":
+        provider = "macos-larkshell" if args.provider == "auto" else args.provider
+        if provider != "macos-larkshell":
+            fail(
+                error_type="usage",
+                subtype="bad_args",
+                message=f"unsupported cookie provider: {args.provider}",
+                hint="Use `--provider macos-larkshell`.",
+            )
+        try:
+            payload = export_macos_larkshell_cookies(
+                output=Path(args.output).expanduser(),
+                app_support=Path(args.app_support).expanduser(),
+                cookies_db=Path(args.cookies_db).expanduser() if args.cookies_db else None,
+                host_like=args.host_like,
+                keychain_service=args.keychain_service,
+                keychain_account=args.keychain_account,
+            )
+        except (FileNotFoundError, RuntimeError, sqlite3.Error) as exc:
+            fail(
+                error_type="cookie",
+                subtype="cookie_export_failed",
+                message=str(exc),
+                hint="Confirm i讯飞 is installed and logged in, then retry `ixfdoc cookies export`.",
+                retryable=True,
+            )
+        print(json.dumps(payload, ensure_ascii=False))
+        return 0
+    fail(
+        error_type="usage",
+        subtype="bad_args",
+        message="unknown cookies command.",
+        hint="Run `ixfdoc cookies export --help`.",
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -197,6 +255,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_read(args)
     if args.command == "doctor":
         return run_doctor(args)
+    if args.command == "cookies":
+        return run_cookies(args)
     parser.print_help(sys.stderr)
     return 2
 

@@ -1,4 +1,5 @@
 import json
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -91,3 +92,99 @@ def test_read_remote_missing_cookie_file_ends_stderr_with_json_error(tmp_path: P
             "retryable": False,
         },
     }
+
+
+def test_cookies_export_from_explicit_sqlite_db(tmp_path: Path) -> None:
+    cookies_db = tmp_path / "Cookies"
+    output = tmp_path / "cookies.json"
+    con = sqlite3.connect(cookies_db)
+    con.execute(
+        """
+        create table cookies (
+            host_key text,
+            name text,
+            value text,
+            encrypted_value blob,
+            path text,
+            expires_utc integer,
+            is_secure integer,
+            is_httponly integer,
+            samesite integer
+        )
+        """
+    )
+    con.executemany(
+        """
+        insert into cookies
+        (host_key, name, value, encrypted_value, path, expires_utc, is_secure, is_httponly, samesite)
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (
+                ".xfchat.iflytek.com",
+                "_csrf_token",
+                "csrf-fixture",
+                b"",
+                "/",
+                0,
+                1,
+                1,
+                0,
+            ),
+            (
+                ".xfchat.iflytek.com",
+                "session",
+                "session-fixture",
+                b"",
+                "/",
+                0,
+                1,
+                1,
+                0,
+            ),
+        ],
+    )
+    con.commit()
+    con.close()
+
+    result = run_module(
+        "cookies",
+        "export",
+        "--provider",
+        "macos-larkshell",
+        "--cookies-db",
+        str(cookies_db),
+        "--output",
+        str(output),
+    )
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["hasCsrf"] is True
+    assert payload["cookieCount"] == 2
+    assert payload["output"] == str(output)
+    cookies = json.loads(output.read_text(encoding="utf-8"))
+    assert [cookie["name"] for cookie in cookies] == ["_csrf_token", "session"]
+
+
+def test_cookies_export_missing_db_ends_stderr_with_json_error(tmp_path: Path) -> None:
+    missing_db = tmp_path / "missing-Cookies"
+
+    result = run_module(
+        "cookies",
+        "export",
+        "--provider",
+        "macos-larkshell",
+        "--cookies-db",
+        str(missing_db),
+        "--output",
+        str(tmp_path / "cookies.json"),
+    )
+
+    assert result.returncode == 6
+    payload = json.loads(result.stderr.strip().splitlines()[-1])
+    assert payload["ok"] is False
+    assert payload["error"]["type"] == "cookie"
+    assert payload["error"]["subtype"] == "cookie_export_failed"
+    assert payload["error"]["retryable"] is True
