@@ -42,12 +42,22 @@ def convert_docx_client_vars(
     options: ConversionOptions | None = None,
 ) -> ConversionResult:
     tree = build_block_tree(client_vars_data, obj_token)
+    render_options = options or ConversionOptions()
+    ordered_counters: dict[str, int] = {}
     warnings: list[str] = []
     seen: set[str] = set()
     parts: list[str] = []
 
     for block_id in tree.order:
-        rendered = render_block(tree, block_id, 0, seen, warnings, options or ConversionOptions())
+        rendered = render_block(
+            tree,
+            block_id,
+            0,
+            seen,
+            warnings,
+            render_options,
+            ordered_counters,
+        )
         if rendered.strip():
             parts.append(rendered.strip())
 
@@ -158,6 +168,7 @@ def render_block(
     seen: set[str],
     warnings: list[str],
     options: ConversionOptions,
+    ordered_counters: dict[str, int],
 ) -> str:
     if block_id in seen:
         return ""
@@ -167,7 +178,7 @@ def render_block(
         return ""
 
     if block.type == "page":
-        return render_children(tree, block, depth, seen, warnings, options)
+        return render_children(tree, block, depth, seen, warnings, options, ordered_counters)
     if block.type.startswith("heading"):
         level_match = re.search(r"(\d+)$", block.type)
         level = min(int(level_match.group(1)) if level_match else 1, 6)
@@ -177,16 +188,18 @@ def render_block(
     if block.type == "bullet":
         return f"{'  ' * depth}- {block.text}".rstrip()
     if block.type == "ordered":
-        return f"{'  ' * depth}1. {block.text}".rstrip()
+        parent_key = block.parent_id or "__root__"
+        ordered_counters[parent_key] = ordered_counters.get(parent_key, 0) + 1
+        return f"{'  ' * depth}{ordered_counters[parent_key]}. {block.text}".rstrip()
     if block.type == "code":
         return f"```\n{block.text}\n```"
     if block.type == "divider":
         return "---"
     if block.type == "quote_container":
-        inner = render_children(tree, block, depth, seen, warnings, options)
+        inner = render_children(tree, block, depth, seen, warnings, options, ordered_counters)
         return "\n".join(f"> {line}" if line else ">" for line in inner.splitlines())
     if block.type == "callout":
-        return render_children(tree, block, depth, seen, warnings, options)
+        return render_children(tree, block, depth, seen, warnings, options, ordered_counters)
     if block.type == "sheet":
         token = str(block.raw.get("token", "") or "")
         marker = "[sheet]" if not token else f"[sheet token={token}]"
@@ -198,7 +211,7 @@ def render_block(
     if block.type in {"table", "table_cell", "whiteboard", "image", "mindnote", "isv"}:
         return f"[{block.type}]"
 
-    children = render_children(tree, block, depth, seen, warnings, options)
+    children = render_children(tree, block, depth, seen, warnings, options, ordered_counters)
     if block.type not in {"unknown", ""}:
         warning = f"unsupported block type: {block.type}"
         if warning not in warnings:
@@ -213,9 +226,10 @@ def render_children(
     seen: set[str],
     warnings: list[str],
     options: ConversionOptions,
+    ordered_counters: dict[str, int],
 ) -> str:
     parts = [
-        render_block(tree, child_id, depth, seen, warnings, options)
+        render_block(tree, child_id, depth, seen, warnings, options, ordered_counters)
         for child_id in block.children
     ]
     return "\n\n".join(part.strip() for part in parts if part.strip())

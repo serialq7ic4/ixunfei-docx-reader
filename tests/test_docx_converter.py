@@ -147,3 +147,36 @@ def test_convert_docx_client_vars_preserves_resource_markers() -> None:
     assert result.markdown == "[table]\n\n[image]\n\n[mindnote]\n"
     assert result.counts == Counter({"page": 1, "table": 1, "image": 1, "mindnote": 1})
     assert result.warnings == []
+
+
+def test_convert_docx_client_vars_numbers_ordered_siblings() -> None:
+    client_vars = {
+        "block_map": {
+            "page_1": {
+                "data": {
+                    "type": "page",
+                    "children": ["ordered_1", "ordered_2"],
+                }
+            },
+            "ordered_1": {
+                "data": {
+                    "type": "ordered",
+                    "parent_id": "page_1",
+                    "text": {"initialAttributedTexts": {"text": {"0": "First"}}},
+                }
+            },
+            "ordered_2": {
+                "data": {
+                    "type": "ordered",
+                    "parent_id": "page_1",
+                    "text": {"initialAttributedTexts": {"text": {"0": "Second"}}},
+                }
+            },
+        }
+    }
+
+    result = convert_docx_client_vars(client_vars, "page_1")
+
+    assert result.markdown == "1. First\n\n2. Second\n"
+    assert result.counts == Counter({"page": 1, "ordered": 2})
+    assert result.warnings == []
