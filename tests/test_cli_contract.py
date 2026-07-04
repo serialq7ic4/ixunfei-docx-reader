@@ -156,6 +156,43 @@ def test_read_remote_invalid_cookie_file_ends_stderr_with_json_error(tmp_path: P
     }
 
 
+def test_read_remote_cookie_without_csrf_ends_stderr_with_json_error(tmp_path: Path) -> None:
+    cookies_path = tmp_path / "cookies-without-csrf.json"
+    cookies_path.write_text(
+        json.dumps(
+            [
+                {
+                    "name": "session",
+                    "value": "session-fixture",
+                    "domain": ".xfchat.iflytek.com",
+                    "path": "/",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_module(
+        "read",
+        "https://example.com/docx/doxfixturetoken",
+        "--cookies",
+        str(cookies_path),
+    )
+
+    assert result.returncode == 8
+    payload = json.loads(result.stderr.strip().splitlines()[-1])
+    assert payload == {
+        "ok": False,
+        "error": {
+            "type": "cookie",
+            "subtype": "cookie_csrf_missing",
+            "message": "Cookie jar does not contain _csrf_token.",
+            "hint": "Run `ixfdoc cookies export --provider auto --output <path>` to refresh the local desktop session cookies.",
+            "retryable": False,
+        },
+    }
+
+
 def test_cookies_export_from_explicit_sqlite_db(tmp_path: Path) -> None:
     cookies_db = tmp_path / "Cookies"
     output = tmp_path / "cookies.json"

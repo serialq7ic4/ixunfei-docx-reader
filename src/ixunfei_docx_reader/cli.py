@@ -26,6 +26,7 @@ EXIT_CODES = {
     "cookie_file_missing": 5,
     "cookie_export_failed": 6,
     "cookie_file_invalid": 7,
+    "cookie_csrf_missing": 8,
 }
 
 
@@ -132,10 +133,18 @@ def run_read(args: argparse.Namespace) -> int:
             hint="Pass an existing local file path or a supported i讯飞 document URL.",
         )
     except ValueError as exc:
+        message = str(exc)
+        if message == "Cookie jar does not contain _csrf_token.":
+            fail(
+                error_type="cookie",
+                subtype="cookie_csrf_missing",
+                message=message,
+                hint="Run `ixfdoc cookies export --provider auto --output <path>` to refresh the local desktop session cookies.",
+            )
         fail(
             error_type="cookie",
             subtype="cookie_file_invalid",
-            message=str(exc),
+            message=message,
             hint="Run `ixfdoc cookies export --provider auto --output <path>` or pass a valid --cookies file.",
         )
     if args.out_dir:
