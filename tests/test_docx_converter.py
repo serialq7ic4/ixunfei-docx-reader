@@ -50,6 +50,7 @@ def test_convert_docx_client_vars_renders_basic_markdown() -> None:
     result = convert_docx_client_vars(client_vars, "page_1")
 
     assert result.markdown == (
+        "# Demo Doc\n\n"
         "# Overview\n\n"
         "Hello world\n\n"
         "- First point\n\n"

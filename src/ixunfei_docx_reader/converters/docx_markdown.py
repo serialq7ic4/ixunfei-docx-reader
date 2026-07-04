@@ -34,6 +34,7 @@ class Block:
 class BlockTree:
     blocks: dict[str, Block]
     order: list[str]
+    root_id: str | None
 
 
 def convert_docx_client_vars(
@@ -47,6 +48,10 @@ def convert_docx_client_vars(
     warnings: list[str] = []
     seen: set[str] = set()
     parts: list[str] = []
+    if tree.root_id:
+        root = tree.blocks.get(tree.root_id)
+        if root and root.type == "page" and root.text:
+            parts.append(f"# {root.text}")
 
     for block_id in tree.order:
         rendered = render_block(
@@ -100,7 +105,7 @@ def build_block_tree(client_vars_data: dict[str, Any], obj_token: str) -> BlockT
         order = [child_id for child_id in root.children if child_id in blocks]
     else:
         order = [block_id for block_id in blocks if block_id != root_id]
-    return BlockTree(blocks=blocks, order=order)
+    return BlockTree(blocks=blocks, order=order, root_id=root_id)
 
 
 def read_parent(data: dict[str, Any], entry: dict[str, Any]) -> str | None:
