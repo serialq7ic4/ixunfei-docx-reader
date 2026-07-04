@@ -131,6 +131,31 @@ def test_read_remote_missing_cookie_file_ends_stderr_with_json_error(tmp_path: P
     }
 
 
+def test_read_remote_invalid_cookie_file_ends_stderr_with_json_error(tmp_path: Path) -> None:
+    bad_cookie = tmp_path / "bad-cookies.json"
+    bad_cookie.write_text('{"not": "a browser cookie list"}', encoding="utf-8")
+
+    result = run_module(
+        "read",
+        "https://example.com/docx/doxfixturetoken",
+        "--cookies",
+        str(bad_cookie),
+    )
+
+    assert result.returncode == 7
+    payload = json.loads(result.stderr.strip().splitlines()[-1])
+    assert payload == {
+        "ok": False,
+        "error": {
+            "type": "cookie",
+            "subtype": "cookie_file_invalid",
+            "message": "Cookie JSON must be a list of browser cookie objects.",
+            "hint": "Run `ixfdoc cookies export --provider auto --output <path>` or pass a valid --cookies file.",
+            "retryable": False,
+        },
+    }
+
+
 def test_cookies_export_from_explicit_sqlite_db(tmp_path: Path) -> None:
     cookies_db = tmp_path / "Cookies"
     output = tmp_path / "cookies.json"

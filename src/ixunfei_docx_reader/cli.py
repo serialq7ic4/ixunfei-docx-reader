@@ -25,6 +25,7 @@ EXIT_CODES = {
     "bad_args": 2,
     "cookie_file_missing": 5,
     "cookie_export_failed": 6,
+    "cookie_file_invalid": 7,
 }
 
 
@@ -129,6 +130,13 @@ def run_read(args: argparse.Namespace) -> int:
             subtype="bad_args",
             message=message,
             hint="Pass an existing local file path or a supported i讯飞 document URL.",
+        )
+    except ValueError as exc:
+        fail(
+            error_type="cookie",
+            subtype="cookie_file_invalid",
+            message=str(exc),
+            hint="Run `ixfdoc cookies export --provider auto --output <path>` or pass a valid --cookies file.",
         )
     if args.out_dir:
         manifest = write_outputs(results, Path(args.out_dir).expanduser())
