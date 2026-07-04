@@ -195,6 +195,8 @@ def render_block(
         expanded = options.expand_sheet(token)
         expanded_text = "\n".join(expanded) if isinstance(expanded, list) else str(expanded)
         return "\n".join(part for part in [marker, expanded_text.strip()] if part.strip())
+    if block.type in {"table", "table_cell", "whiteboard", "image", "mindnote", "isv"}:
+        return f"[{block.type}]"
 
     children = render_children(tree, block, depth, seen, warnings, options)
     if block.type not in {"unknown", ""}:
