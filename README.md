@@ -7,7 +7,7 @@ This project is intentionally small:
 - `ixfdoc` is the CLI.
 - Codex and Claude Code skills are thin wrappers around the CLI.
 - The core reader is read-only and does not upload document content.
-- Supported desktop platforms are macOS and Windows.
+- Supported desktop platforms are macOS today; Windows support is planned.
 
 ## Commands
 
