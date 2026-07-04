@@ -53,6 +53,43 @@ def test_doctor_json_reports_basic_runtime() -> None:
     assert payload["platform"] in {"macos", "windows", "other"}
 
 
+def test_doctor_json_reports_cookie_metadata_without_values(tmp_path: Path) -> None:
+    cookies_path = tmp_path / "cookies.json"
+    cookies_path.write_text(
+        json.dumps(
+            [
+                {
+                    "name": "_csrf_token",
+                    "value": "secret-csrf",
+                    "domain": ".xfchat.iflytek.com",
+                    "path": "/",
+                },
+                {
+                    "name": "session",
+                    "value": "secret-session",
+                    "domain": ".xfchat.iflytek.com",
+                    "path": "/",
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_module("doctor", "--json", "--cookies", str(cookies_path))
+
+    assert result.returncode == 0
+    assert "secret-csrf" not in result.stdout
+    assert "secret-session" not in result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["cookies"] == {
+        "path": str(cookies_path),
+        "exists": True,
+        "readable": True,
+        "cookieCount": 2,
+        "hasCsrf": True,
+    }
+
+
 def test_read_local_markdown_writes_output_and_manifest(tmp_path: Path) -> None:
     source = tmp_path / "source.md"
     source.write_text("# Source\n\nHello from local file.\n", encoding="utf-8")

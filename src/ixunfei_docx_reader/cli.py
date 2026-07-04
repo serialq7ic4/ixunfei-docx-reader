@@ -18,6 +18,7 @@ from ixunfei_docx_reader.cookies.macos_larkshell import (
     export_cookies as export_macos_larkshell_cookies,
 )
 from ixunfei_docx_reader.reader import DEFAULT_COOKIES, DEFAULT_SPACE_API, read_sources
+from ixunfei_docx_reader.reader import load_cookie_objects
 
 
 EXIT_CODES = {
@@ -82,6 +83,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor = subparsers.add_parser("doctor", help="Print local diagnostic information.")
     doctor.add_argument("--json", action="store_true", dest="as_json")
+    doctor.add_argument("--cookies", default=DEFAULT_COOKIES)
 
     cookies = subparsers.add_parser("cookies", help="Manage local session cookies.")
     cookie_subparsers = cookies.add_subparsers(dest="cookies_command")
@@ -198,6 +200,7 @@ def run_doctor(args: argparse.Namespace) -> int:
         "version": __version__,
         "platform": platform_name(),
         "python": platform.python_version(),
+        "cookies": cookie_diagnostics(Path(args.cookies).expanduser()),
     }
     if args.as_json:
         print(json.dumps(payload, ensure_ascii=False))
@@ -205,7 +208,34 @@ def run_doctor(args: argparse.Namespace) -> int:
         print(f"ixfdoc {__version__}")
         print(f"platform {payload['platform']}")
         print(f"python {payload['python']}")
+        cookie_info = payload["cookies"]
+        print(f"cookies {cookie_info['path']}")
+        print(f"cookies.exists {cookie_info['exists']}")
+        print(f"cookies.hasCsrf {cookie_info['hasCsrf']}")
     return 0
+
+
+def cookie_diagnostics(cookie_path: Path) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "path": str(cookie_path),
+        "exists": cookie_path.exists(),
+        "readable": False,
+        "cookieCount": 0,
+        "hasCsrf": False,
+    }
+    if not cookie_path.exists():
+        return payload
+    try:
+        cookies = load_cookie_objects(cookie_path)
+    except Exception as exc:
+        payload["error"] = str(exc)
+        return payload
+    payload["readable"] = True
+    payload["cookieCount"] = len(cookies)
+    payload["hasCsrf"] = any(
+        cookie.get("name") == "_csrf_token" and bool(cookie.get("value")) for cookie in cookies
+    )
+    return payload
 
 
 def run_cookies(args: argparse.Namespace) -> int:
