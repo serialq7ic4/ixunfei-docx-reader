@@ -24,5 +24,6 @@ Agents should parse only the final JSON line. Human-readable text may appear bef
 - `cookie.cookie_export_failed`
 - `cookie.cookie_file_invalid`
 - `cookie.cookie_csrf_missing`
+- `remote.remote_read_failed`
 
 More subtypes will be added as remote reading, cookie providers, and diagnostics mature.

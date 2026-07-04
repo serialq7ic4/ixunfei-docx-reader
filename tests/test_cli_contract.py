@@ -193,6 +193,37 @@ def test_read_remote_cookie_without_csrf_ends_stderr_with_json_error(tmp_path: P
     }
 
 
+def test_read_remote_network_failure_ends_stderr_with_json_error(tmp_path: Path) -> None:
+    cookies_path = tmp_path / "cookies.json"
+    cookies_path.write_text(
+        json.dumps(
+            [
+                {
+                    "name": "_csrf_token",
+                    "value": "csrf-fixture",
+                    "domain": "127.0.0.1",
+                    "path": "/",
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_module(
+        "read",
+        "http://127.0.0.1:9/docx/doxfixturetoken",
+        "--cookies",
+        str(cookies_path),
+    )
+
+    assert result.returncode == 9
+    payload = json.loads(result.stderr.strip().splitlines()[-1])
+    assert payload["ok"] is False
+    assert payload["error"]["type"] == "remote"
+    assert payload["error"]["subtype"] == "remote_read_failed"
+    assert payload["error"]["retryable"] is True
+
+
 def test_cookies_export_from_explicit_sqlite_db(tmp_path: Path) -> None:
     cookies_db = tmp_path / "Cookies"
     output = tmp_path / "cookies.json"

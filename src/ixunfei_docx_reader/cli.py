@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from typing import NoReturn
 
+import requests
+
 from ixunfei_docx_reader import __version__
 from ixunfei_docx_reader.cookies.macos_larkshell import (
     DEFAULT_APP_SUPPORT,
@@ -27,6 +29,7 @@ EXIT_CODES = {
     "cookie_export_failed": 6,
     "cookie_file_invalid": 7,
     "cookie_csrf_missing": 8,
+    "remote_read_failed": 9,
 }
 
 
@@ -146,6 +149,14 @@ def run_read(args: argparse.Namespace) -> int:
             subtype="cookie_file_invalid",
             message=message,
             hint="Run `ixfdoc cookies export --provider auto --output <path>` or pass a valid --cookies file.",
+        )
+    except (requests.RequestException, RuntimeError) as exc:
+        fail(
+            error_type="remote",
+            subtype="remote_read_failed",
+            message=str(exc),
+            hint="Check network access, document permissions, and whether the local desktop session is still valid.",
+            retryable=True,
         )
     if args.out_dir:
         manifest = write_outputs(results, Path(args.out_dir).expanduser())
