@@ -17,6 +17,17 @@ ixfdoc cookies export --provider auto --output /tmp/ixunfei_profile_explorer_coo
 ixfdoc doctor --json --cookies /tmp/ixunfei_profile_explorer_cookies.json
 ```
 
+## Install
+
+For local development, install the CLI in editable mode:
+
+```bash
+python -m pip install -e ".[crypto,dev]"
+ixfdoc --version
+```
+
+`crypto` is needed for macOS cookie decryption. `dev` is only needed for tests.
+
 ## Current Status
 
 The initial package skeleton is in place with:
@@ -42,3 +53,12 @@ ixfdoc read "<private-i讯飞-link>" --cookies /tmp/ixunfei_profile_explorer_coo
 ```
 
 Treat exported cookie files as secrets. Do not commit or print them.
+
+## Agent Wrappers
+
+The Codex and Claude Code wrappers live under:
+
+- `skills/codex/ixunfei-docx-reader/SKILL.md`
+- `skills/claude-code/ixunfei-docx-reader/SKILL.md`
+
+They should call `ixfdoc` directly and stay thin. Keep parsing, cookie export, diagnostics, and conversion logic in the shared Python package.
