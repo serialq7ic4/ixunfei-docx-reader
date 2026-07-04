@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 import requests
 
 from ixunfei_docx_reader.converters.docx_markdown import convert_docx_client_vars
+from ixunfei_docx_reader.converters.docx_markdown import ConversionOptions
 
 
 DEFAULT_SPACE_API = "https://internal-api-space.xfchat.iflytek.com"
@@ -599,7 +600,11 @@ def read_remote(
         sheet_cache[sheet_block_token] = lines
         return lines
 
-    conversion = convert_docx_client_vars(data, token)
+    conversion = convert_docx_client_vars(
+        data,
+        token,
+        ConversionOptions(expand_sheet=sheet_expander if expand_sheets else None),
+    )
     body = conversion.markdown
     counts = conversion.counts
     if expand_sheets:
@@ -657,4 +662,3 @@ def read_sources(
             }
         )
     return results
-

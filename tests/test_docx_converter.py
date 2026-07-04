@@ -1,6 +1,9 @@
 from collections import Counter
 
-from ixunfei_docx_reader.converters.docx_markdown import convert_docx_client_vars
+from ixunfei_docx_reader.converters.docx_markdown import (
+    ConversionOptions,
+    convert_docx_client_vars,
+)
 
 
 def test_convert_docx_client_vars_renders_basic_markdown() -> None:
@@ -85,3 +88,40 @@ def test_convert_docx_client_vars_marks_unknown_blocks_without_losing_children()
     assert result.markdown == "Nested text\n"
     assert result.warnings == ["unsupported block type: unsupported_widget"]
 
+
+def test_convert_docx_client_vars_expands_sheet_blocks() -> None:
+    client_vars = {
+        "block_map": {
+            "page_1": {"data": {"type": "page", "children": ["sheet_1"]}},
+            "sheet_1": {
+                "data": {
+                    "type": "sheet",
+                    "parent_id": "page_1",
+                    "token": "shtr_fixture_sheet1",
+                }
+            },
+        }
+    }
+    expanded_tokens: list[str] = []
+
+    def expand_sheet(token: str) -> list[str]:
+        expanded_tokens.append(token)
+        return [
+            "[sheet-meta workbook_token=shtr_fixture sheet_id=sheet1 rows=1 cols=2]",
+            "Name\tValue",
+        ]
+
+    result = convert_docx_client_vars(
+        client_vars,
+        "page_1",
+        ConversionOptions(expand_sheet=expand_sheet),
+    )
+
+    assert expanded_tokens == ["shtr_fixture_sheet1"]
+    assert result.markdown == (
+        "[sheet token=shtr_fixture_sheet1]\n"
+        "[sheet-meta workbook_token=shtr_fixture sheet_id=sheet1 rows=1 cols=2]\n"
+        "Name\tValue\n"
+    )
+    assert result.counts == Counter({"page": 1, "sheet": 1})
+    assert result.warnings == []

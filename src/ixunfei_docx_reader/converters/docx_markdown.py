@@ -187,6 +187,14 @@ def render_block(
         return "\n".join(f"> {line}" if line else ">" for line in inner.splitlines())
     if block.type == "callout":
         return render_children(tree, block, depth, seen, warnings, options)
+    if block.type == "sheet":
+        token = str(block.raw.get("token", "") or "")
+        marker = "[sheet]" if not token else f"[sheet token={token}]"
+        if not token or options.expand_sheet is None:
+            return marker
+        expanded = options.expand_sheet(token)
+        expanded_text = "\n".join(expanded) if isinstance(expanded, list) else str(expanded)
+        return "\n".join(part for part in [marker, expanded_text.strip()] if part.strip())
 
     children = render_children(tree, block, depth, seen, warnings, options)
     if block.type not in {"unknown", ""}:
@@ -209,4 +217,3 @@ def render_children(
         for child_id in block.children
     ]
     return "\n\n".join(part.strip() for part in parts if part.strip())
-
