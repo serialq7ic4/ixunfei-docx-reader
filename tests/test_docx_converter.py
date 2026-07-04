@@ -180,3 +180,31 @@ def test_convert_docx_client_vars_numbers_ordered_siblings() -> None:
     assert result.markdown == "1. First\n\n2. Second\n"
     assert result.counts == Counter({"page": 1, "ordered": 2})
     assert result.warnings == []
+
+
+def test_convert_docx_client_vars_preserves_callout_marker() -> None:
+    client_vars = {
+        "block_map": {
+            "page_1": {"data": {"type": "page", "children": ["callout_1"]}},
+            "callout_1": {
+                "data": {
+                    "type": "callout",
+                    "parent_id": "page_1",
+                    "children": ["text_1"],
+                }
+            },
+            "text_1": {
+                "data": {
+                    "type": "text",
+                    "parent_id": "callout_1",
+                    "text": {"initialAttributedTexts": {"text": {"0": "Important note"}}},
+                }
+            },
+        }
+    }
+
+    result = convert_docx_client_vars(client_vars, "page_1")
+
+    assert result.markdown == "[callout]\n\nImportant note\n"
+    assert result.counts == Counter({"page": 1, "callout": 1, "text": 1})
+    assert result.warnings == []

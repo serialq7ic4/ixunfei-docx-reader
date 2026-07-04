@@ -199,7 +199,8 @@ def render_block(
         inner = render_children(tree, block, depth, seen, warnings, options, ordered_counters)
         return "\n".join(f"> {line}" if line else ">" for line in inner.splitlines())
     if block.type == "callout":
-        return render_children(tree, block, depth, seen, warnings, options, ordered_counters)
+        children = render_children(tree, block, depth, seen, warnings, options, ordered_counters)
+        return "\n\n".join(part for part in ["[callout]", children.strip()] if part)
     if block.type == "sheet":
         token = str(block.raw.get("token", "") or "")
         marker = "[sheet]" if not token else f"[sheet token={token}]"
