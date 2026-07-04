@@ -1,0 +1,31 @@
+---
+name: ixunfei-docx-reader
+description: Read authorized i讯飞/LarkShell wiki, docx, mindnote, bitable, embedded sheet, or local Markdown sources into local Markdown/TSV artifacts for Codex analysis. Use when the user provides private i讯飞 document links or asks to summarize, analyze, or mine requirements from those documents.
+---
+
+# ixunfei-docx-reader
+
+Use the `ixfdoc` CLI as the source of truth. Do not reimplement document parsing in the skill.
+
+## Read Sources
+
+```bash
+ixfdoc read "<source>" --out-dir /tmp/ixfdoc-extracts --expand-sheets --print-manifest
+```
+
+Multiple sources are allowed:
+
+```bash
+ixfdoc read "<url-1>" "<url-2>" "/path/to/local.md" --out-dir /tmp/ixfdoc-extracts --expand-sheets --print-manifest
+```
+
+## Error Handling
+
+If a command exits non-zero, parse the final line of `stderr` as JSON and follow `error.hint`. Do not parse human-readable prose.
+
+## Safety
+
+- Treat cookie files as secrets.
+- Do not print cookie values.
+- Generated Markdown/TSV may contain private document content.
+

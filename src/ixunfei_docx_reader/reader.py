@@ -1,0 +1,660 @@
+from __future__ import annotations
+
+import base64
+from collections import Counter
+from datetime import datetime, timezone
+import gzip
+import http.cookiejar
+import json
+from pathlib import Path
+import re
+from typing import Any
+from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
+
+import requests
+
+from ixunfei_docx_reader.converters.docx_markdown import convert_docx_client_vars
+
+
+DEFAULT_SPACE_API = "https://internal-api-space.xfchat.iflytek.com"
+DEFAULT_COOKIES = "/tmp/ixunfei_profile_explorer_cookies.json"
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36"
+)
+
+
+def load_cookie_objects(cookie_path: Path) -> list[dict[str, Any]]:
+    if not cookie_path.exists():
+        raise FileNotFoundError(f"Cookie file not found: {cookie_path}")
+    if cookie_path.suffix == ".json":
+        data = json.loads(cookie_path.read_text(encoding="utf-8"))
+        if not isinstance(data, list):
+            raise ValueError("Cookie JSON must be a list of browser cookie objects.")
+        return data
+    jar = http.cookiejar.MozillaCookieJar(str(cookie_path))
+    jar.load(ignore_discard=True, ignore_expires=True)
+    return [
+        {
+            "name": cookie.name,
+            "value": cookie.value,
+            "domain": cookie.domain,
+            "path": cookie.path,
+            "secure": cookie.secure,
+        }
+        for cookie in jar
+    ]
+
+
+def build_session(cookies: list[dict[str, Any]]) -> requests.Session:
+    session = requests.Session()
+    for cookie in cookies:
+        session.cookies.set(
+            cookie["name"],
+            cookie["value"],
+            domain=cookie.get("domain"),
+            path=cookie.get("path", "/"),
+        )
+    return session
+
+
+def csrf_from(cookies: list[dict[str, Any]]) -> str:
+    for cookie in cookies:
+        if cookie.get("name") == "_csrf_token":
+            return str(cookie.get("value"))
+    raise ValueError("Cookie jar does not contain _csrf_token.")
+
+
+def is_remote(source: str) -> bool:
+    return source.startswith("http://") or source.startswith("https://")
+
+
+def origin_for(url: str) -> str:
+    parsed = urlparse(url)
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def common_headers(origin: str, csrf_token: str, referer: str) -> dict[str, str]:
+    return {
+        "User-Agent": USER_AGENT,
+        "Origin": origin,
+        "Referer": referer,
+        "X-CSRFToken": csrf_token,
+    }
+
+
+def fetch_html(session: requests.Session, url: str, csrf_token: str) -> str:
+    origin = origin_for(url)
+    response = session.get(url, headers=common_headers(origin, csrf_token, url), timeout=30)
+    response.raise_for_status()
+    return response.text
+
+
+def client_vars(
+    session: requests.Session,
+    space_api: str,
+    page_id: str,
+    origin: str,
+    csrf_token: str,
+) -> dict[str, Any]:
+    response = session.get(
+        f"{space_api.rstrip('/')}/space/api/docx/pages/client_vars?id={page_id}&open_type=1",
+        headers=common_headers(origin, csrf_token, f"{origin}/docx/{page_id}"),
+        timeout=30,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if payload.get("code") != 0:
+        raise RuntimeError(f"client_vars failed: {payload}")
+    return payload["data"]
+
+
+def bitable_client_vars(
+    session: requests.Session,
+    origin: str,
+    base_token: str,
+    csrf_token: str,
+    referer: str,
+) -> dict[str, Any]:
+    response = session.get(
+        (
+            f"{origin}/space/api/v1/bitable/{base_token}/clientvars"
+            "?tableID=&viewID=&recordLimit=2000&ondemandLimit=200"
+            "&needBase=true&viewLazyLoad=true&ondemandVer=2"
+            "&openType=0&noMissCS=true&optimizationFlag=1"
+        ),
+        headers=common_headers(origin, csrf_token, referer),
+        timeout=60,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if payload.get("code") != 0:
+        raise RuntimeError(f"bitable clientvars failed: {payload}")
+    return payload["data"]
+
+
+def extract_doc_token(url: str, html: str) -> str:
+    parsed = urlparse(url)
+    docx_match = re.search(r"/docx/([^/?#]+)", parsed.path)
+    if docx_match:
+        return docx_match.group(1)
+
+    patterns = [
+        r'obj_token":"([^"]+)"',
+        r'token":"(dox[a-zA-Z0-9]+)"',
+        r'url_token":"(dox[a-zA-Z0-9]+)"',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, html)
+        if match:
+            return match.group(1)
+    raise RuntimeError("Unable to locate a doc token in page HTML.")
+
+
+def extract_balanced_object(text: str, anchor: str) -> str:
+    start = text.find(anchor)
+    if start == -1:
+        raise RuntimeError(f"Anchor not found: {anchor}")
+    start += len(anchor)
+    while start < len(text) and text[start].isspace():
+        start += 1
+    if start >= len(text) or text[start] != "{":
+        raise RuntimeError(f"Expected '{{' after anchor: {anchor}")
+
+    depth = 0
+    in_string = False
+    escape = False
+    for idx in range(start, len(text)):
+        ch = text[idx]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : idx + 1]
+    raise RuntimeError(f"Unterminated object after anchor: {anchor}")
+
+
+def extract_current_space_wiki(html: str) -> dict[str, Any]:
+    return json.loads(extract_balanced_object(html, "current_space_wiki = Object("))
+
+
+def decode_gzip_json(encoded: str) -> Any:
+    raw = gzip.decompress(base64.b64decode(encoded))
+    return json.loads(raw)
+
+
+def split_sheet_block_token(sheet_block_token: str) -> tuple[str, str]:
+    if "_" not in sheet_block_token:
+        raise ValueError(f"Invalid embedded sheet token: {sheet_block_token}")
+    workbook_token, sheet_id = sheet_block_token.rsplit("_", 1)
+    if not workbook_token or not sheet_id:
+        raise ValueError(f"Invalid embedded sheet token: {sheet_block_token}")
+    return workbook_token, sheet_id
+
+
+def fetch_embedded_sheet(
+    session: requests.Session,
+    origin: str,
+    host_page_token: str,
+    sheet_block_token: str,
+    csrf_token: str,
+) -> dict[str, Any]:
+    workbook_token, sheet_id = split_sheet_block_token(sheet_block_token)
+    response = session.post(
+        (
+            f"{origin}/space/api/v3/sheet/client_vars"
+            f"?synced_block_host_token={host_page_token}&synced_block_host_type=22"
+        ),
+        json={
+            "memberId": 0,
+            "schemaVersion": 9,
+            "openType": 1,
+            "token": workbook_token,
+            "sheetRange": {"sheetId": sheet_id},
+            "clientVersion": "v0.0.1",
+        },
+        headers=common_headers(origin, csrf_token, f"{origin}/docx/{host_page_token}"),
+        timeout=60,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if payload.get("code") != 0:
+        raise RuntimeError(f"sheet client_vars failed: {payload}")
+    return payload["data"]
+
+
+def normalize_sheet_text(text: str) -> str:
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def should_start_rich_text_line(piece: str, next_piece: str) -> bool:
+    compact = piece.strip()
+    if not compact or len(compact) > 24:
+        return False
+    if compact.endswith((":", "：")):
+        return True
+    return next_piece.lstrip().startswith((":", "："))
+
+
+def render_sheet_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (int, float, bool)):
+        return str(value)
+    if isinstance(value, list):
+        rendered_parts = [render_sheet_value(item) for item in value]
+        text_parts: list[str] = []
+        for index, rendered in enumerate(rendered_parts):
+            if rendered:
+                next_piece = rendered_parts[index + 1] if index + 1 < len(rendered_parts) else ""
+                if (
+                    text_parts
+                    and not text_parts[-1].endswith("\n")
+                    and should_start_rich_text_line(rendered, next_piece)
+                ):
+                    text_parts.append("\n")
+                text_parts.append(rendered)
+        return "".join(text_parts)
+    if isinstance(value, dict):
+        if "text" in value:
+            return render_sheet_value(value.get("text"))
+        for key in ("value", "formattedValue", "displayValue"):
+            if key in value:
+                rendered = render_sheet_value(value.get(key))
+                if rendered:
+                    return rendered
+        if set(value.keys()) <= {"styleId", "type"}:
+            return ""
+        return json.dumps(value, ensure_ascii=False)
+    return str(value)
+
+
+def cell_to_text(cell: Any) -> str:
+    if cell is None:
+        return ""
+    if not isinstance(cell, dict):
+        return normalize_sheet_text(render_sheet_value(cell))
+    for key in ("value", "formattedValue", "displayValue"):
+        if key in cell:
+            return normalize_sheet_text(render_sheet_value(cell.get(key)))
+    if set(cell.keys()) <= {"styleId", "type"}:
+        return ""
+    return ""
+
+
+def escape_tsv_cell(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("\t", "\\t").replace("\r\n", "\n").replace("\n", "\\n")
+
+
+def bitable_field_option_map(field: dict[str, Any]) -> dict[str, str]:
+    options = field.get("property", {}).get("options", [])
+    return {
+        str(option.get("id")): str(option.get("name", ""))
+        for option in options
+        if isinstance(option, dict) and option.get("id")
+    }
+
+
+def bitable_user_map(client_vars_data: dict[str, Any]) -> dict[str, str]:
+    user_map: dict[str, str] = {}
+    users = client_vars_data.get("users", {})
+    if isinstance(users, dict):
+        for user_id, user in users.items():
+            if not isinstance(user, dict):
+                continue
+            name = user.get("name") or user.get("enName") or user.get("displayName")
+            if name:
+                user_map[str(user_id)] = str(name)
+    old_users = client_vars_data.get("oldSchema", {}).get("users", {})
+    if isinstance(old_users, dict):
+        for user_id, user in old_users.items():
+            if not isinstance(user, dict):
+                continue
+            name = user.get("name") or user.get("enName") or user.get("displayName")
+            if name and str(user_id) not in user_map:
+                user_map[str(user_id)] = str(name)
+    return user_map
+
+
+def format_bitable_datetime(value: Any, field: dict[str, Any], tz_name: str) -> str:
+    if not isinstance(value, (int, float)):
+        return render_sheet_value(value)
+    timestamp = float(value)
+    if timestamp > 10**12:
+        timestamp /= 1000
+    try:
+        tz = ZoneInfo(tz_name) if tz_name else timezone.utc
+    except Exception:
+        tz = timezone.utc
+    dt = datetime.fromtimestamp(timestamp, tz)
+    prop = field.get("property", {})
+    date_format = str(prop.get("dateFormat", "yyyy/MM/dd"))
+    time_format = str(prop.get("timeFormat", "")).strip()
+    fmt = date_format.replace("yyyy", "%Y").replace("MM", "%m").replace("dd", "%d")
+    if time_format:
+        fmt = f"{fmt} {time_format.replace('HH', '%H').replace('mm', '%M').replace('ss', '%S')}"
+    return dt.strftime(fmt)
+
+
+def render_bitable_value(
+    value: Any,
+    field: dict[str, Any],
+    user_map: dict[str, str],
+    tz_name: str,
+) -> str:
+    field_type = int(field.get("type", 0) or 0)
+    if value is None:
+        return ""
+    if field_type == 3:
+        option_map = bitable_field_option_map(field)
+        if isinstance(value, list):
+            return ", ".join(option_map.get(str(item), str(item)) for item in value if item is not None)
+        return option_map.get(str(value), str(value))
+    if field_type == 5:
+        return format_bitable_datetime(value, field, tz_name)
+    if field_type == 11:
+        if isinstance(value, list):
+            return ", ".join(user_map.get(str(item), str(item)) for item in value if item is not None)
+        return user_map.get(str(value), str(value))
+    return render_sheet_value(value)
+
+
+def render_bitable_as_tsv(
+    client_vars_data: dict[str, Any],
+    base_token: str,
+) -> tuple[list[str], Counter[str]]:
+    old_schema = decode_gzip_json(client_vars_data["oldSchema"]["gzipSchema"])
+    base = old_schema["base"]
+    table_data = old_schema["data"]["table"]
+    record_map = old_schema["data"]["recordMap"]
+    table_id = str(base["tables"][0])
+    table_name = str(base.get("tableInfos", {}).get(table_id, {}).get("name", "") or table_id)
+    views = table_data.get("views", [])
+    view_map = table_data.get("viewMap", {})
+    selected_view: dict[str, Any] | None = None
+    for view_id in views:
+        view = view_map.get(view_id)
+        if isinstance(view, dict) and int(view.get("type", 0) or 0) == 1:
+            selected_view = view
+            break
+    if selected_view is None and views:
+        selected_view = view_map.get(views[0])
+    if not isinstance(selected_view, dict):
+        raise RuntimeError("Unable to locate a renderable bitable view.")
+
+    view_id = str(selected_view.get("id", ""))
+    view_name = str(selected_view.get("name", "") or view_id)
+    field_ids = [str(field_id) for field_id in selected_view.get("property", {}).get("fields", [])]
+    record_ids = [str(record_id) for record_id in selected_view.get("property", {}).get("records", [])]
+    field_map = table_data.get("fieldMap", {})
+    user_map = bitable_user_map(client_vars_data)
+    tz_name = str(base.get("timezone", "") or client_vars_data.get("timeZone", "") or "")
+
+    headers = [str(field_map.get(field_id, {}).get("name", field_id)) for field_id in field_ids]
+    lines = [
+        (
+            f"[bitable-meta base_token={base_token} table_id={table_id} "
+            f'table_name="{table_name}" view_id={view_id} '
+            f'view_name="{view_name}" rows={len(record_ids)} cols={len(field_ids)} views={len(views)}]'
+        ),
+        "```tsv",
+        "\t".join(escape_tsv_cell(header) for header in headers),
+    ]
+    for record_id in record_ids:
+        record = record_map.get(record_id, {})
+        row: list[str] = []
+        for field_id in field_ids:
+            field = field_map.get(field_id, {})
+            cell = record.get(field_id, {})
+            value = cell.get("value") if isinstance(cell, dict) else cell
+            rendered = render_bitable_value(value, field, user_map, tz_name)
+            row.append(escape_tsv_cell(normalize_sheet_text(rendered)))
+        lines.append("\t".join(row))
+    lines.extend(["```", ""])
+    counts = Counter(
+        {
+            "bitable": 1,
+            "bitable_views": len(views),
+            "bitable_fields": len(field_ids),
+            "bitable_records": len(record_ids),
+        }
+    )
+    return lines, counts
+
+
+def render_embedded_sheet_as_tsv(
+    session: requests.Session,
+    origin: str,
+    host_page_token: str,
+    sheet_block_token: str,
+    csrf_token: str,
+) -> list[str]:
+    data = fetch_embedded_sheet(session, origin, host_page_token, sheet_block_token, csrf_token)
+    workbook_token, sheet_id = split_sheet_block_token(sheet_block_token)
+    formerly_schema = data["formerlySchema"]
+    clientvars = formerly_schema["clientvars"]
+    snapshot = decode_gzip_json(clientvars["gzip_snapshot"])
+    sheet_meta = snapshot.get("sheets", {}).get(sheet_id, {})
+    row_count = int(sheet_meta.get("rowCount", 0) or 0)
+    column_count = int(sheet_meta.get("columnCount", 0) or 0)
+
+    row_map: dict[int, list[str]] = {}
+    for block in clientvars.get("extra_data", {}).get("blocks", []):
+        datatable = decode_gzip_json(block["gzip_datatable"])
+        start_row = int(block.get("row", 0) or 0)
+        rows = datatable.get("rows", [])
+        for offset, row in enumerate(rows):
+            columns = row.get("columns", [])
+            row_map[start_row + offset] = [cell_to_text(column) for column in columns]
+            column_count = max(column_count, len(row_map[start_row + offset]))
+
+    max_row = max(row_map.keys(), default=-1)
+    if row_count <= 0:
+        row_count = max_row + 1
+
+    lines = [
+        (
+            f"[sheet-meta workbook_token={workbook_token} "
+            f"sheet_id={sheet_id} rows={row_count} cols={column_count}]"
+        ),
+        "```tsv",
+    ]
+    for row_index in range(row_count):
+        values = row_map.get(row_index, [])
+        if len(values) < column_count:
+            values = values + [""] * (column_count - len(values))
+        lines.append("\t".join(escape_tsv_cell(value) for value in values))
+    lines.extend(["```", ""])
+    return lines
+
+
+def normalize_lines(lines: list[str]) -> list[str]:
+    cleaned = [line.rstrip() for line in lines]
+    out: list[str] = []
+    blank_run = 0
+    for line in cleaned:
+        if not line.strip():
+            blank_run += 1
+            if blank_run <= 1:
+                out.append("")
+            continue
+        blank_run = 0
+        out.append(line)
+    while out and not out[-1].strip():
+        out.pop()
+    return out
+
+
+def render_mindnote_text(parts: list[dict[str, Any]]) -> str:
+    text = "".join(str(part.get("text", "")) for part in parts if isinstance(part, dict))
+    return text.strip()
+
+
+def render_mindnote_nodes(nodes: list[dict[str, Any]], depth: int = 0) -> list[str]:
+    lines: list[str] = []
+    indent = "  " * depth
+    for node in nodes:
+        text = render_mindnote_text(node.get("text", []))
+        if text:
+            lines.append(f"{indent}- {text}")
+        for child in node.get("children", []):
+            lines.extend(render_mindnote_nodes([child], depth + 1))
+    return lines
+
+
+def read_mindnote(
+    session: requests.Session,
+    url: str,
+    csrf_token: str,
+) -> tuple[str, str, str, Counter[str]]:
+    html = fetch_html(session, url, csrf_token)
+    payload = json.loads(extract_balanced_object(html, "clientVars: Object("))
+    title = str(payload["data"].get("title", "")).strip() or Path(urlparse(url).path).name
+    nodes = payload["data"]["collab_client_vars"].get("nodes", [])
+    lines = [f"# {title}", ""]
+    lines.extend(render_mindnote_nodes(nodes))
+    lines = normalize_lines(lines)
+    counts = Counter({"mindnote_nodes": len(nodes)})
+    token = str(payload.get("token", ""))
+    return title, token, "\n".join(lines).strip() + "\n", counts
+
+
+def read_bitable_wiki(
+    session: requests.Session,
+    source: str,
+    html: str,
+    csrf_token: str,
+) -> tuple[str, str, str, Counter[str]]:
+    origin = origin_for(source)
+    wiki_info = extract_current_space_wiki(html)
+    base_token = str(wiki_info.get("obj_token", ""))
+    if not base_token:
+        raise RuntimeError("Unable to locate bitable base token from wiki HTML.")
+    client_vars_data = bitable_client_vars(session, origin, base_token, csrf_token, source)
+    lines, counts = render_bitable_as_tsv(client_vars_data, base_token)
+    title = str(
+        decode_gzip_json(client_vars_data["oldSchema"]["gzipSchema"]).get("base", {}).get("name", "")
+    ).strip() or base_token
+    content_lines = [f"# {title}", "", f"[bitable token={base_token}]"]
+    content_lines.extend(lines)
+    return title, base_token, "\n".join(normalize_lines(content_lines)).strip() + "\n", counts
+
+
+def detect_remote_kind(url: str) -> str:
+    path = urlparse(url).path
+    if "/wiki/" in path:
+        return "wiki"
+    if "/docx/" in path:
+        return "docx"
+    if "/mindnotes/" in path:
+        return "mindnote"
+    return "remote"
+
+
+def read_remote(
+    session: requests.Session,
+    source: str,
+    space_api: str,
+    csrf_token: str,
+    expand_sheets: bool,
+) -> tuple[str, str, str, str, Counter[str]]:
+    kind = detect_remote_kind(source)
+    if kind == "mindnote":
+        title, token, body, counts = read_mindnote(session, source, csrf_token)
+        return kind, title, token, body, counts
+
+    html = fetch_html(session, source, csrf_token)
+    if kind == "wiki" and "window.wiki_suite_type = 'bitable'" in html:
+        title, token, body, counts = read_bitable_wiki(session, source, html, csrf_token)
+        return "wiki_bitable", title, token, body, counts
+    origin = origin_for(source)
+    token = extract_doc_token(source, html)
+    data = client_vars(session, space_api, token, origin, csrf_token)
+    sheet_cache: dict[str, list[str]] = {}
+
+    def sheet_expander(sheet_block_token: str) -> list[str]:
+        if sheet_block_token in sheet_cache:
+            return sheet_cache[sheet_block_token]
+        try:
+            lines = render_embedded_sheet_as_tsv(session, origin, token, sheet_block_token, csrf_token)
+        except Exception as exc:
+            lines = [f"[sheet-error {exc}]", ""]
+        sheet_cache[sheet_block_token] = lines
+        return lines
+
+    conversion = convert_docx_client_vars(data, token)
+    body = conversion.markdown
+    counts = conversion.counts
+    if expand_sheets:
+        counts["sheet_expanded"] = len(sheet_cache)
+    root = data.get("block_map", {}).get(token, {})
+    root_data = root.get("data", root) if isinstance(root, dict) else {}
+    title = str(root_data.get("text", "") or token) if isinstance(root_data, dict) else token
+    return kind, title, token, body, counts
+
+
+def read_local(source: str) -> tuple[str, str]:
+    path = Path(source).expanduser()
+    if not path.exists():
+        raise FileNotFoundError(f"Local file not found: {path}")
+    return path.name, path.read_text(encoding="utf-8")
+
+
+def read_sources(
+    sources: list[str],
+    *,
+    cookies_path: Path = Path(DEFAULT_COOKIES),
+    space_api: str = DEFAULT_SPACE_API,
+    expand_sheets: bool = False,
+) -> list[dict[str, Any]]:
+    remote_sources = [source for source in sources if is_remote(source)]
+    session: requests.Session | None = None
+    csrf_token = ""
+    if remote_sources:
+        cookies = load_cookie_objects(cookies_path.expanduser())
+        session = build_session(cookies)
+        csrf_token = csrf_from(cookies)
+
+    results: list[dict[str, Any]] = []
+    for source in sources:
+        if is_remote(source):
+            assert session is not None
+            kind, title, token, content, counts = read_remote(
+                session,
+                source,
+                space_api,
+                csrf_token,
+                expand_sheets,
+            )
+        else:
+            title, content = read_local(source)
+            kind, token, counts = "local_markdown", "", {}
+        results.append(
+            {
+                "source": source,
+                "kind": kind,
+                "title": title,
+                "token": token,
+                "content": content,
+                "counts": counts,
+            }
+        )
+    return results
+

@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ixunfei-docx-reader"
+version = "0.1.0"
+description = "Read authorized i讯飞/LarkShell documents into agent-friendly Markdown/TSV."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "serialq7ic4" }]
+dependencies = [
+  "requests>=2.31",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+]
+crypto = [
+  "cryptography>=42.0",
+]
+
+[project.scripts]
+ixfdoc = "ixunfei_docx_reader.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
