@@ -208,3 +208,24 @@ def test_convert_docx_client_vars_preserves_callout_marker() -> None:
     assert result.markdown == "[callout]\n\nImportant note\n"
     assert result.counts == Counter({"page": 1, "callout": 1, "text": 1})
     assert result.warnings == []
+
+
+def test_convert_docx_client_vars_preserves_empty_quote_marker() -> None:
+    client_vars = {
+        "block_map": {
+            "page_1": {"data": {"type": "page", "children": ["quote_1"]}},
+            "quote_1": {
+                "data": {
+                    "type": "quote_container",
+                    "parent_id": "page_1",
+                    "children": [],
+                }
+            },
+        }
+    }
+
+    result = convert_docx_client_vars(client_vars, "page_1")
+
+    assert result.markdown == ">\n"
+    assert result.counts == Counter({"page": 1, "quote_container": 1})
+    assert result.warnings == []

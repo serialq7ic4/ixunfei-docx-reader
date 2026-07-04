@@ -197,6 +197,8 @@ def render_block(
         return "---"
     if block.type == "quote_container":
         inner = render_children(tree, block, depth, seen, warnings, options, ordered_counters)
+        if not inner.strip():
+            return ">"
         return "\n".join(f"> {line}" if line else ">" for line in inner.splitlines())
     if block.type == "callout":
         children = render_children(tree, block, depth, seen, warnings, options, ordered_counters)
