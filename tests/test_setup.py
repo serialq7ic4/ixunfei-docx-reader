@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import subprocess
 import sys
 
@@ -104,6 +105,7 @@ def test_built_wheel_setup_skills_can_install_packaged_codex_wrapper(tmp_path: P
     home = tmp_path / "home"
     codex_skills = home / ".codex" / "skills"
     env = {
+        **os.environ,
         "HOME": str(home),
         "USERPROFILE": str(home),
         "IXFDOC_CODEX_SKILLS_DIR": str(codex_skills),
