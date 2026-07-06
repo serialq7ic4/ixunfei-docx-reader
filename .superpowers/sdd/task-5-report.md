@@ -56,3 +56,20 @@
 
 - Real Windows DPAPI cannot be live-tested on this macOS environment. Coverage uses injectable decryptor and mocked DPAPI entrypoint behavior for deterministic validation.
 - The DPAPI implementation follows the Task 5 requirement for DPAPI-protected cookie values directly; if future Chromium/LarkShell versions use an additional Local State AES key flow, that should be implemented as a separate task with Windows fixtures.
+
+## Review Fixes
+
+- Implemented modern Chromium-family Windows cookie decryption through Local State `os_crypt.encrypted_key`, DPAPI master-key unwrap, and `v10`/`v11` AES-GCM cookie blob decryption.
+- Added `find_local_state(...)` plus optional `local_state` and `dpapi_unprotect` injection on `export_cookies(...)` for deterministic tests and explicit path/key flow.
+- Preserved legacy direct-DPAPI cookie value decryption for non-versioned encrypted blobs and kept SQLite opening read-only.
+- Updated Windows export metadata so `hasCsrf` is true only when `_csrf_token` has a non-empty value.
+- Added a supported-platforms warning that exported cookie files are sensitive local artifacts that should not be logged, screenshotted, committed, or retained longer than needed.
+
+## Review Fix Test Results
+
+- `python -m pytest tests/test_windows_cookie_provider.py tests/test_cli_contract.py -q`
+  - Result: PASS, 29 passed.
+- `python -m compileall -q src && python -m pytest -q`
+  - Result: PASS, 45 passed.
+- `python -m ruff check .`
+  - Result: PASS, All checks passed.

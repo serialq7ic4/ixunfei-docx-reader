@@ -19,4 +19,6 @@ ixfdoc cookies export --provider windows-larkshell --output %TEMP%\\ixunfei_prof
 ixfdoc doctor --json --cookies %TEMP%\\ixunfei_profile_explorer_cookies.json
 ```
 
+Exported cookie files are sensitive local artifacts. Do not log, screenshot, commit, or keep them longer than needed.
+
 Do not use this on Linux; i讯飞 does not ship a Linux desktop client.

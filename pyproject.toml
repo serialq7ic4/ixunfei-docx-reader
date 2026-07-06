@@ -24,6 +24,7 @@ crypto = [
   "cryptography>=42.0",
 ]
 windows = [
+  "cryptography>=42.0",
   "pywin32>=306; platform_system == 'Windows'",
 ]
 
