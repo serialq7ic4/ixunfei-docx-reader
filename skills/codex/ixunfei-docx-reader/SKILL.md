@@ -10,13 +10,15 @@ Use the `ixfdoc` CLI as the source of truth. Do not reimplement document parsing
 ## Read Sources
 
 ```bash
-ixfdoc read "<source>" --out-dir /tmp/ixfdoc-extracts --expand-sheets --print-manifest
+out="$(mktemp -d /tmp/ixfdoc.XXXXXX)"
+ixfdoc read "<source>" --out-dir "$out" --expand-sheets --print-manifest --cleanup
 ```
 
 Multiple sources are allowed:
 
 ```bash
-ixfdoc read "<url-1>" "<url-2>" "/path/to/local.md" --out-dir /tmp/ixfdoc-extracts --expand-sheets --print-manifest
+out="$(mktemp -d /tmp/ixfdoc.XXXXXX)"
+ixfdoc read "<url-1>" "<url-2>" "/path/to/local.md" --out-dir "$out" --expand-sheets --print-manifest --cleanup
 ```
 
 ## Error Handling

@@ -10,10 +10,11 @@ This skill is a thin wrapper around the shared `ixfdoc` CLI.
 ## Command
 
 ```bash
-ixfdoc read "<source>" --out-dir /tmp/ixfdoc-extracts --expand-sheets --print-manifest
+out="$(mktemp -d /tmp/ixfdoc.XXXXXX)"
+ixfdoc read "<source>" --out-dir "$out" --expand-sheets --print-manifest --cleanup
 ```
 
-Use the manifest paths as the analysis inputs.
+Use the manifest output to locate generated files while the command is running. With `--cleanup`, generated Markdown/TSV files are removed before the command exits.
 
 ## Non-Zero Exit
 

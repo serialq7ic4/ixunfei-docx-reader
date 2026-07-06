@@ -142,6 +142,53 @@ def test_read_local_markdown_writes_output_and_manifest(tmp_path: Path) -> None:
     assert (out_dir / "manifest.json").exists()
 
 
+def test_read_local_markdown_cleanup_removes_output_dir_after_manifest_print(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source.md"
+    source.write_text("# Source\n\nSensitive local content.\n", encoding="utf-8")
+    out_dir = tmp_path / "out"
+
+    result = run_module(
+        "read",
+        str(source),
+        "--out-dir",
+        str(out_dir),
+        "--print-manifest",
+        "--cleanup",
+    )
+
+    assert result.returncode == 0
+    manifest = json.loads(result.stdout)
+    item = manifest["local_markdown_1"]
+    assert item["kind"] == "local_markdown"
+    assert item["file"] == str(out_dir / "local-markdown-1.md")
+    assert not out_dir.exists()
+
+
+def test_read_cleanup_preserves_unrelated_files_in_output_dir(tmp_path: Path) -> None:
+    source = tmp_path / "source.md"
+    source.write_text("# Source\n\nSensitive local content.\n", encoding="utf-8")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    keep = out_dir / "keep.txt"
+    keep.write_text("do not delete\n", encoding="utf-8")
+
+    result = run_module(
+        "read",
+        str(source),
+        "--out-dir",
+        str(out_dir),
+        "--cleanup",
+    )
+
+    assert result.returncode == 0
+    assert keep.read_text(encoding="utf-8") == "do not delete\n"
+    assert out_dir.exists()
+    assert not (out_dir / "local-markdown-1.md").exists()
+    assert not (out_dir / "manifest.json").exists()
+
+
 def test_read_remote_missing_cookie_file_ends_stderr_with_json_error(tmp_path: Path) -> None:
     missing_cookie = tmp_path / "missing-cookies.json"
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import platform
@@ -87,6 +88,11 @@ def build_parser() -> argparse.ArgumentParser:
     read.add_argument("--out-dir", default="")
     read.add_argument("--expand-sheets", action="store_true")
     read.add_argument("--print-manifest", action="store_true")
+    read.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="Remove generated Markdown and manifest files before exiting.",
+    )
     read.add_argument("--cookies", default=DEFAULT_COOKIES)
     read.add_argument("--space-api", default=DEFAULT_SPACE_API)
 
@@ -178,9 +184,12 @@ def run_read(args: argparse.Namespace) -> int:
             retryable=True,
         )
     if args.out_dir:
-        manifest = write_outputs(results, Path(args.out_dir).expanduser())
+        out_dir = Path(args.out_dir).expanduser()
+        manifest = write_outputs(results, out_dir)
         if args.print_manifest:
             print(json.dumps(manifest, ensure_ascii=False, indent=2))
+        if args.cleanup:
+            cleanup_outputs(manifest, out_dir)
         return 0
 
     multiple = len(results) > 1
@@ -233,6 +242,16 @@ def write_outputs(results: list[dict[str, object]], out_dir: Path) -> dict[str, 
         encoding="utf-8",
     )
     return manifest
+
+
+def cleanup_outputs(manifest: dict[str, dict[str, object]], out_dir: Path) -> None:
+    generated_paths = [Path(str(item["file"])) for item in manifest.values()]
+    generated_paths.append(out_dir / "manifest.json")
+    for path in generated_paths:
+        with contextlib.suppress(FileNotFoundError):
+            path.unlink()
+    with contextlib.suppress(OSError):
+        out_dir.rmdir()
 
 
 def slugify(value: str) -> str:
