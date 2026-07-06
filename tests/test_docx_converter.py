@@ -183,6 +183,106 @@ def test_convert_docx_client_vars_numbers_ordered_siblings() -> None:
     assert result.warnings == []
 
 
+def test_convert_docx_client_vars_indents_nested_bullets() -> None:
+    client_vars = {
+        "block_map": {
+            "page_1": {
+                "data": {
+                    "type": "page",
+                    "children": ["bullet_1"],
+                }
+            },
+            "bullet_1": {
+                "data": {
+                    "type": "bullet",
+                    "parent_id": "page_1",
+                    "children": ["bullet_2"],
+                    "text": {"initialAttributedTexts": {"text": {"0": "Parent"}}},
+                }
+            },
+            "bullet_2": {
+                "data": {
+                    "type": "bullet",
+                    "parent_id": "bullet_1",
+                    "text": {"initialAttributedTexts": {"text": {"0": "Child"}}},
+                }
+            },
+        }
+    }
+
+    result = convert_docx_client_vars(client_vars, "page_1")
+
+    assert result.markdown == "- Parent\n\n  - Child\n"
+    assert result.counts == Counter({"page": 1, "bullet": 2})
+    assert result.warnings == []
+
+
+def test_convert_docx_client_vars_indents_bullets_inside_unknown_containers() -> None:
+    client_vars = {
+        "block_map": {
+            "page_1": {
+                "data": {
+                    "type": "page",
+                    "children": ["container_1"],
+                }
+            },
+            "container_1": {
+                "data": {
+                    "type": "okr_container",
+                    "parent_id": "page_1",
+                    "children": ["bullet_1"],
+                }
+            },
+            "bullet_1": {
+                "data": {
+                    "type": "bullet",
+                    "parent_id": "container_1",
+                    "text": {"initialAttributedTexts": {"text": {"0": "Nested in container"}}},
+                }
+            },
+        }
+    }
+
+    result = convert_docx_client_vars(client_vars, "page_1")
+
+    assert result.markdown == "  - Nested in container\n"
+    assert result.counts == Counter({"page": 1, "okr_container": 1, "bullet": 1})
+    assert result.warnings == ["unsupported block type: okr_container"]
+
+
+def test_convert_docx_client_vars_indents_bullets_inside_callouts() -> None:
+    client_vars = {
+        "block_map": {
+            "page_1": {
+                "data": {
+                    "type": "page",
+                    "children": ["callout_1"],
+                }
+            },
+            "callout_1": {
+                "data": {
+                    "type": "callout",
+                    "parent_id": "page_1",
+                    "children": ["bullet_1"],
+                }
+            },
+            "bullet_1": {
+                "data": {
+                    "type": "bullet",
+                    "parent_id": "callout_1",
+                    "text": {"initialAttributedTexts": {"text": {"0": "Callout child"}}},
+                }
+            },
+        }
+    }
+
+    result = convert_docx_client_vars(client_vars, "page_1")
+
+    assert result.markdown == "[callout]\n\n  - Callout child\n"
+    assert result.counts == Counter({"page": 1, "callout": 1, "bullet": 1})
+    assert result.warnings == []
+
+
 def test_convert_docx_client_vars_preserves_callout_marker() -> None:
     client_vars = {
         "block_map": {

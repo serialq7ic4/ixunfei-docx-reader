@@ -64,9 +64,9 @@ def convert_docx_client_vars(
             ordered_counters,
         )
         if rendered.strip():
-            parts.append(rendered.strip())
+            parts.append(rendered.rstrip())
 
-    markdown = "\n\n".join(parts).strip()
+    markdown = "\n\n".join(parts).rstrip()
     if markdown:
         markdown += "\n"
     return ConversionResult(
@@ -191,7 +191,9 @@ def render_block(
     if block.type == "text":
         return block.text
     if block.type == "bullet":
-        return f"{'  ' * depth}- {block.text}".rstrip()
+        line = f"{'  ' * depth}- {block.text}".rstrip()
+        children = render_children(tree, block, depth + 1, seen, warnings, options, ordered_counters)
+        return "\n\n".join(part for part in [line, children] if part.strip())
     if block.type == "ordered":
         parent_key = block.parent_id or "__root__"
         ordered_counters[parent_key] = ordered_counters.get(parent_key, 0) + 1
@@ -206,8 +208,8 @@ def render_block(
             return ">"
         return "\n".join(f"> {line}" if line else ">" for line in inner.splitlines())
     if block.type == "callout":
-        children = render_children(tree, block, depth, seen, warnings, options, ordered_counters)
-        return "\n\n".join(part for part in ["[callout]", children.strip()] if part)
+        children = render_children(tree, block, depth + 1, seen, warnings, options, ordered_counters)
+        return "\n\n".join(part for part in ["[callout]", children.rstrip()] if part.strip())
     if block.type == "sheet":
         token = str(block.raw.get("token", "") or "")
         marker = "[sheet]" if not token else f"[sheet token={token}]"
@@ -219,7 +221,8 @@ def render_block(
     if block.type in {"table", "table_cell", "whiteboard", "image", "mindnote", "isv"}:
         return f"[{block.type}]"
 
-    children = render_children(tree, block, depth, seen, warnings, options, ordered_counters)
+    child_depth = depth + (1 if block.type else 0)
+    children = render_children(tree, block, child_depth, seen, warnings, options, ordered_counters)
     if block.type not in {"unknown", ""}:
         warning = f"unsupported block type: {block.type}"
         if warning not in warnings:
@@ -240,4 +243,4 @@ def render_children(
         render_block(tree, child_id, depth, seen, warnings, options, ordered_counters)
         for child_id in block.children
     ]
-    return "\n\n".join(part.strip() for part in parts if part.strip())
+    return "\n\n".join(part.rstrip() for part in parts if part.strip())
