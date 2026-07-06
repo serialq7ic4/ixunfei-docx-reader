@@ -4,6 +4,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -327,3 +329,53 @@ def test_cookies_export_missing_db_ends_stderr_with_json_error(tmp_path: Path) -
     assert payload["error"]["type"] == "cookie"
     assert payload["error"]["subtype"] == "cookie_export_failed"
     assert payload["error"]["retryable"] is True
+
+
+def test_cookies_export_accepts_windows_larkshell_provider() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ixunfei_docx_reader.cli",
+            "cookies",
+            "export",
+            "--provider",
+            "windows-larkshell",
+            "--cookies-db",
+            "/definitely/missing/Cookies",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 6
+    assert "Windows LarkShell cookie DB not found" in result.stderr
+
+
+def test_cookies_export_auto_routes_to_windows_provider(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from ixunfei_docx_reader import cli
+
+    output = tmp_path / "cookies.json"
+    calls: list[dict[str, object]] = []
+
+    def fake_export_windows_larkshell_cookies(**kwargs: object) -> dict[str, object]:
+        calls.append(kwargs)
+        return {"ok": True, "provider": "windows-larkshell", "output": str(output)}
+
+    monkeypatch.setattr(cli.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(
+        cli,
+        "export_windows_larkshell_cookies",
+        fake_export_windows_larkshell_cookies,
+    )
+
+    exit_code = cli.main(["cookies", "export", "--provider", "auto", "--output", str(output)])
+
+    assert exit_code == 0
+    assert calls == [{"output": output, "cookies_db": None}]
+    assert json.loads(capsys.readouterr().out)["provider"] == "windows-larkshell"

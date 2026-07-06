@@ -20,6 +20,9 @@ from ixunfei_docx_reader.cookies.macos_larkshell import (
     DEFAULT_KEYCHAIN_SERVICE,
     export_cookies as export_macos_larkshell_cookies,
 )
+from ixunfei_docx_reader.cookies.windows_larkshell import (
+    export_cookies as export_windows_larkshell_cookies,
+)
 from ixunfei_docx_reader.reader import DEFAULT_COOKIES, DEFAULT_SPACE_API, read_sources
 from ixunfei_docx_reader.reader import load_cookie_objects
 
@@ -95,7 +98,11 @@ def build_parser() -> argparse.ArgumentParser:
     cookie_subparsers = cookies.add_subparsers(dest="cookies_command")
     cookie_subparsers.required = True
     export = cookie_subparsers.add_parser("export", help="Export local LarkShell cookies.")
-    export.add_argument("--provider", default="auto", choices=["auto", "macos-larkshell"])
+    export.add_argument(
+        "--provider",
+        default="auto",
+        choices=["auto", "macos-larkshell", "windows-larkshell"],
+    )
     export.add_argument("--output", default=DEFAULT_COOKIES)
     export.add_argument("--app-support", default=DEFAULT_APP_SUPPORT)
     export.add_argument("--cookies-db", default="")
@@ -280,14 +287,25 @@ def cookie_diagnostics(cookie_path: Path) -> dict[str, object]:
 
 def run_cookies(args: argparse.Namespace) -> int:
     if args.cookies_command == "export":
-        provider = "macos-larkshell" if args.provider == "auto" else args.provider
-        if provider != "macos-larkshell":
-            fail(
-                error_type="usage",
-                subtype="bad_args",
-                message=f"unsupported cookie provider: {args.provider}",
-                hint="Use `--provider macos-larkshell`.",
-            )
+        provider = args.provider
+        if provider == "auto":
+            provider = "windows-larkshell" if platform_name() == "windows" else "macos-larkshell"
+        if provider == "windows-larkshell":
+            try:
+                payload = export_windows_larkshell_cookies(
+                    output=Path(args.output).expanduser(),
+                    cookies_db=Path(args.cookies_db).expanduser() if args.cookies_db else None,
+                )
+            except Exception as exc:
+                fail(
+                    error_type="cookie",
+                    subtype="cookie_export_failed",
+                    message=str(exc),
+                    hint="Open i讯飞/LarkShell desktop on Windows, confirm you are logged in, then retry.",
+                    retryable=True,
+                )
+            print(json.dumps(payload, ensure_ascii=False))
+            return 0
         try:
             payload = export_macos_larkshell_cookies(
                 output=Path(args.output).expanduser(),
