@@ -28,6 +28,8 @@ ixfdoc --version
 
 `crypto` is needed for macOS cookie decryption. `dev` is only needed for tests.
 
+Release build notes live in [`docs/release.md`](docs/release.md).
+
 ## Current Status
 
 The initial package skeleton is in place with:
