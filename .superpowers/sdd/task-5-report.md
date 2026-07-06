@@ -73,3 +73,15 @@
   - Result: PASS, 45 passed.
 - `python -m ruff check .`
   - Result: PASS, All checks passed.
+
+## Review Fix: Dev Extra Cryptography Dependency
+
+- Fixed the remaining review finding by adding `cryptography>=42.0` to the `dev` optional dependency group, so the required clean developer/CI setup command installs the dependency needed by the default Windows AES-GCM test module.
+- `python -m pip install -e ".[dev]"`
+  - Result: PASS, editable install completed successfully and confirmed `cryptography>=42.0` was satisfied.
+- `python -m pytest -q`
+  - Result: PASS, 45 passed in 1.26s.
+- `python -m compileall -q src`
+  - Result: PASS, exited 0 with no output.
+- `python -m ruff check .`
+  - Result: PASS, All checks passed.
