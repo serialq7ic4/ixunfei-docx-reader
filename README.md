@@ -1,8 +1,10 @@
 # ixunfei-docx-reader
 
-Read authorized i讯飞/LarkShell private documents into local Markdown/TSV artifacts for agent analysis.
+**简体中文** | [English](README.en.md)
 
-> CLI-first, local-session based, no server, no telemetry, no Open Platform app required.
+把已授权访问的 i讯飞/LarkShell 私有文档读取为本地 Markdown/TSV 文件，方便 Codex、Claude Code 等本地 coding agent 分析。
+
+> CLI-first，复用本机登录态，无服务端，无遥测，不需要飞书开放平台应用。
 
 <p>
   <img alt="python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB">
@@ -10,39 +12,39 @@ Read authorized i讯飞/LarkShell private documents into local Markdown/TSV arti
   <img alt="license" src="https://img.shields.io/badge/license-Apache%202.0-green">
 </p>
 
-`ixunfei-docx-reader` is built around one command-line tool: `ixfdoc`.
+`ixunfei-docx-reader` 的核心是一个命令行工具：`ixfdoc`。
 
-- Export private i讯飞/LarkShell `docx` and `wiki` links into Markdown.
-- Expand supported embedded sheets into TSV sidecar files.
-- Reuse your local desktop login session for authentication.
-- Install thin Codex / Claude Code wrappers that call the same CLI.
-- Keep document content, cookies, and generated artifacts on your machine.
+- 将私有 i讯飞/LarkShell `docx`、`wiki` 链接导出为 Markdown。
+- 将支持的嵌入 sheet 展开为 TSV sidecar 文件。
+- 复用本机 i讯飞/LarkShell 桌面端登录态进行认证。
+- 安装 Codex / Claude Code wrapper skill，由 wrapper 调用同一个 CLI。
+- 文档内容、cookie 和生成产物默认都留在本机。
 
-This project is intentionally small. It is not a browser extension, daemon, sync service, or general Feishu backup product.
+项目刻意保持小而清晰。它不是浏览器扩展、常驻 daemon、同步服务，也不是通用飞书备份产品。
 
-## Why This Exists
+## 为什么做这个
 
-Private i讯飞/LarkShell documents are often inaccessible to coding agents through ordinary HTTP fetches. `ixfdoc` bridges that gap by using the local desktop client session you already have, then converting authorized documents into agent-friendly local files.
+私有 i讯飞/LarkShell 文档通常不能被 coding agent 直接通过普通 HTTP fetch 读取。`ixfdoc` 的目标是补上这段本地工作流：复用你已经登录的桌面端会话，把你有权限访问的文档转换成 agent 更容易处理的本地 Markdown/TSV 文件。
 
-Compared with browser-extension projects such as LarkSnap, this project focuses on a narrower workflow:
+和 LarkSnap 这类浏览器扩展相比，本项目的边界更窄：
 
-| Project shape | Best for |
+| 项目形态 | 更适合 |
 |---|---|
-| `ixfdoc` CLI | Codex / Claude Code reading authorized private docs during local development |
-| Browser extension | One-click browser export, visual UI, PDF/HTML export, attachment workflows |
+| `ixfdoc` CLI | Codex / Claude Code 在本地开发时读取已授权的私有文档 |
+| 浏览器扩展 | 浏览器里一键导出、可视化 UI、PDF/HTML、附件下载等工作流 |
 
-The design rule is simple: put parsing, cookie export, diagnostics, and conversion in the Python CLI; keep agent skills as wrappers only.
+设计原则也很简单：解析、cookie 导出、诊断和格式转换都放在 Python CLI 里；agent skill 只做薄 wrapper，不重复实现 reader。
 
-## Install
+## 安装
 
-From GitHub Release:
+从 GitHub Release 安装：
 
 ```bash
 python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
 ixfdoc --version
 ```
 
-For local development:
+本地开发安装：
 
 ```bash
 git clone https://github.com/serialq7ic4/ixunfei-docx-reader.git
@@ -51,20 +53,20 @@ python -m pip install -e ".[crypto,dev]"
 ixfdoc --version
 ```
 
-For experimental Windows cookie export:
+Windows cookie 导出目前仍是实验支持：
 
 ```bash
 python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
 ```
 
-`crypto` is needed for macOS cookie decryption. `dev` is for tests and release builds. Windows support is covered by CI and unit tests, but still needs validation on a real Windows i讯飞/LarkShell desktop client before it is treated as Tier 1.
+`crypto` 用于 macOS cookie 解密。`dev` 用于测试和本地 release build。Windows 已有 CI 和单元测试覆盖，但还需要在真实 Windows i讯飞/LarkShell 桌面端登录环境验证后，才会提升为 Tier 1 支持。
 
-## Quick Start
+## 快速开始
 
-1. Open i讯飞/LarkShell desktop and confirm you are logged in.
-2. Export local session cookies.
-3. Run `doctor` to verify the cookie file shape without printing secrets.
-4. Read one or more private document links.
+1. 打开 i讯飞/LarkShell 桌面端，并确认已经登录。
+2. 导出本地会话 cookie。
+3. 用 `doctor` 检查 cookie 文件形态，不会打印 cookie 值。
+4. 读取一个或多个私有文档链接。
 
 ```bash
 ixfdoc cookies export \
@@ -83,29 +85,29 @@ ixfdoc read \
   --print-manifest
 ```
 
-The generated Markdown and TSV files are local artifacts. Treat them as sensitive if the source document is sensitive.
+生成的 Markdown 和 TSV 都是本地文件。如果源文档敏感，这些产物也应按敏感数据处理。
 
-## Commands
+## 命令
 
-| Command | Purpose |
+| 命令 | 用途 |
 |---|---|
-| `ixfdoc read <source>...` | Read private links or local Markdown files into Markdown/TSV outputs |
-| `ixfdoc cookies export` | Export cookies from the local i讯飞/LarkShell desktop session |
-| `ixfdoc doctor` | Inspect runtime and cookie metadata without printing cookie values |
-| `ixfdoc setup skills` | Install Codex / Claude Code wrapper skills |
-| `ixfdoc --version` | Print the installed CLI version |
+| `ixfdoc read <source>...` | 将私有链接或本地 Markdown 文件读取为 Markdown/TSV 产物 |
+| `ixfdoc cookies export` | 从本机 i讯飞/LarkShell 桌面端会话导出 cookie |
+| `ixfdoc doctor` | 检查运行环境和 cookie 元数据，不打印 cookie 值 |
+| `ixfdoc setup skills` | 安装 Codex / Claude Code wrapper skill |
+| `ixfdoc --version` | 输出当前 CLI 版本 |
 
-Common read options:
+常用读取参数：
 
-| Option | Purpose |
+| 参数 | 用途 |
 |---|---|
-| `--out-dir <dir>` | Directory for generated artifacts |
-| `--cookies <file>` | Cookie JSON file exported by `ixfdoc cookies export` |
-| `--expand-sheets` | Export supported embedded sheets into TSV sidecar files |
-| `--print-manifest` | Print JSON manifest with output paths and metadata |
-| `--cleanup` | Remove files generated by the current command before exit |
+| `--out-dir <dir>` | 生成产物目录 |
+| `--cookies <file>` | `ixfdoc cookies export` 导出的 cookie JSON 文件 |
+| `--expand-sheets` | 将支持的嵌入 sheet 展开为 TSV sidecar 文件 |
+| `--print-manifest` | 输出 JSON manifest，包含产物路径和元数据 |
+| `--cleanup` | 命令退出前删除本次命令生成的文件 |
 
-Use `--cleanup` when generated files are only needed during the current agent run:
+如果生成文件只在当前 agent run 中临时使用，可以加 `--cleanup`：
 
 ```bash
 out="$(mktemp -d /tmp/ixfdoc.XXXXXX)"
@@ -117,63 +119,63 @@ ixfdoc read "<private-link>" \
   --cleanup
 ```
 
-`--cleanup` removes only files generated by the current command. It does not recursively delete unrelated files in the output directory.
+`--cleanup` 只会删除本次命令生成的文件，不会递归删除输出目录里的其他内容。
 
 ## Agent Wrappers
 
-Install local wrappers for Codex and Claude Code:
+安装 Codex 和 Claude Code wrapper：
 
 ```bash
 ixfdoc setup skills --runtimes auto --json
 ```
 
-Install only one runtime:
+只安装某一个运行时：
 
 ```bash
 ixfdoc setup skills --runtimes codex --json
 ixfdoc setup skills --runtimes claude-code --json
 ```
 
-The wrappers do not implement their own document parser. They call `ixfdoc read`, consume the CLI manifest/error contract, and follow the returned hints.
+这些 wrapper 不实现自己的文档解析逻辑。它们调用 `ixfdoc read`，读取 CLI 的 manifest / JSON error contract，并按 CLI 返回的 hint 处理错误。
 
-Packaged wrapper sources live under:
+打包的 wrapper 源文件在：
 
 - `skills/codex/ixunfei-docx-reader/SKILL.md`
 - `skills/claude-code/ixunfei-docx-reader/SKILL.md`
 
-## Supported Sources
+## 支持的来源
 
-Current reader coverage includes:
+当前 reader 覆盖：
 
-- i讯飞/LarkShell `docx` documents.
-- i讯飞/LarkShell `wiki` links that resolve to supported document types.
-- Mindnote / embedded sheet markers when exposed through the supported document payload.
-- Local Markdown files for wrapper and workflow testing.
+- i讯飞/LarkShell `docx` 文档。
+- 可解析到受支持文档类型的 i讯飞/LarkShell `wiki` 链接。
+- 通过受支持文档 payload 暴露出来的 mindnote / 嵌入 sheet 标记。
+- 本地 Markdown 文件，主要用于 wrapper 和工作流测试。
 
-Some Feishu/i讯飞 block formats do not map perfectly to Markdown. The converter keeps the representation practical for agent analysis rather than trying to recreate the original visual document one-to-one.
+部分 Feishu/i讯飞 block 格式无法和 Markdown 一一对应。当前转换器优先保证 agent 分析可用，而不是完全还原原始文档视觉效果。
 
-## Supported Platforms
+## 支持平台
 
-| Platform | Status | Notes |
+| 平台 | 状态 | 说明 |
 |---|---|---|
-| macOS | Tier 1 | Reads LarkShell Chromium profile data and decrypts cookies with Keychain. |
-| Windows | CI-tested / experimental | Reads LarkShell Chromium profile data and decrypts cookies through DPAPI with `pywin32`; still needs live desktop-client validation. |
+| macOS | Tier 1 | 读取 LarkShell Chromium profile，并通过 Keychain 解密 cookie。 |
+| Windows | CI-tested / experimental | 读取 LarkShell Chromium profile，并通过 `pywin32` + DPAPI 解密 cookie；还需要真实桌面端验证。 |
 
-Linux is not supported because i讯飞 does not ship a Linux desktop client.
+Linux 不支持，因为 i讯飞没有 Linux 桌面客户端。
 
-More detail: [`docs/supported-platforms.md`](docs/supported-platforms.md).
+更多细节见 [`docs/supported-platforms.md`](docs/supported-platforms.md)。
 
-## Privacy And Security
+## 隐私与安全
 
-- Cookie export uses your local desktop login session.
-- Cookie values are never printed by `doctor`.
-- Generated Markdown/TSV files may contain private document content.
-- Do not commit cookies, generated artifacts, logs containing private links, or diagnostic output with sensitive metadata.
-- This tool is for authorized document access only. Follow your organization's data handling rules.
+- Cookie 导出复用本机桌面端登录态。
+- `doctor` 不会打印 cookie 值。
+- 生成的 Markdown/TSV 可能包含私有文档内容。
+- 不要提交 cookie、生成产物、包含私有链接的日志，或带敏感元数据的诊断输出。
+- 本工具仅用于读取你已获授权访问的文档。请遵守所在组织的数据管理要求。
 
-See [`PRIVACY.md`](PRIVACY.md) and [`SECURITY.md`](SECURITY.md).
+参见 [`PRIVACY.md`](PRIVACY.md) 和 [`SECURITY.md`](SECURITY.md)。
 
-## Development
+## 开发
 
 ```bash
 python -m pip install -e ".[crypto,dev]"
@@ -184,32 +186,32 @@ python -m build
 scripts/smoke.sh
 ```
 
-On Windows:
+Windows：
 
 ```powershell
 python -m pip install -e ".[windows,dev]"
 scripts\smoke.ps1
 ```
 
-Release notes live in [`docs/release.md`](docs/release.md). The JSON error contract is documented in [`docs/error-contract.md`](docs/error-contract.md).
+Release 说明见 [`docs/release.md`](docs/release.md)。JSON 错误契约见 [`docs/error-contract.md`](docs/error-contract.md)。
 
-## Project Status
+## 项目状态
 
-Implemented:
+已完成：
 
-- CLI package with JSON error handling.
-- macOS local cookie export.
-- Windows cookie provider implementation with CI/unit-test coverage.
-- Remote private document reader ported from the original skill.
-- Feishu/i讯飞 docx client-vars to Markdown conversion.
-- Embedded sheet expansion into TSV sidecar files.
-- Codex and Claude Code wrapper installation.
-- GitHub Actions CI and tagged Release workflow.
+- 带 JSON error handling 的 CLI package。
+- macOS 本地 cookie 导出。
+- Windows cookie provider 实现，已有 CI/单元测试覆盖。
+- 从原始 skill 迁移的远程私有文档 reader。
+- Feishu/i讯飞 docx client-vars 到 Markdown 的转换。
+- 嵌入 sheet 展开为 TSV sidecar 文件。
+- Codex 和 Claude Code wrapper 安装。
+- GitHub Actions CI 和 tag Release workflow。
 
-Known limitation:
+已知限制：
 
-- Windows is not promoted to Tier 1 until cookie export is validated on a real Windows i讯飞/LarkShell desktop login.
+- Windows 还没有提升到 Tier 1；需要在真实 Windows i讯飞/LarkShell 桌面端登录环境验证 cookie 导出。
 
-## License
+## 许可证
 
 [Apache License 2.0](LICENSE)
