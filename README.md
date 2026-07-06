@@ -12,7 +12,7 @@
   <img alt="license" src="https://img.shields.io/badge/license-Apache%202.0-green">
 </p>
 
-`ixunfei-docx-reader` 的优先入口是 Codex / Claude Code skill；`ixfdoc` 是 skill 调用的本地执行引擎，也可直接用于调试和自动化。
+`ixunfei-docx-reader` 默认作为 Codex / Claude Code skill 安装和使用；`ixfdoc` 是 skill 依赖的本地执行引擎，也可直接用于调试和自动化。
 
 - 在 Codex / Claude Code 里直接粘贴私有 i讯飞/LarkShell `docx`、`wiki` 链接并读取为 Markdown。
 - 将支持的嵌入 sheet 展开为 TSV sidecar 文件。
@@ -35,47 +35,81 @@
 
 设计原则也很简单：Codex / Claude Code skill 是用户入口；解析、cookie 导出、诊断和格式转换都收敛到 `ixfdoc` 本地执行引擎里，避免每个 agent 集成都重复实现 reader。
 
-## 安装
+## 安装到 Codex / Claude Code
 
-### 推荐：让 agent 帮你安装
+推荐让当前正在使用的 agent 直接完成安装。安装过程会先安装 `ixunfei-docx-reader` Python 包，再把 `ixunfei-docx-reader` skill 注册到 Codex 或 Claude Code。
+
+### 安装到 Codex
 
 如果你正在使用 Codex，可以直接对 Codex 说：
 
-> 请帮我从 https://github.com/serialq7ic4/ixunfei-docx-reader 安装 ixunfei-docx-reader。先安装 GitHub Release wheel（macOS 用 `[crypto]`，Windows 用 `[windows]`），再运行 `ixfdoc setup skills --runtimes codex --json` 安装 Codex skill，最后用 `ixfdoc --version` 验证。
+> 请帮我把 https://github.com/serialq7ic4/ixunfei-docx-reader 安装为 Codex skill。使用 GitHub Release wheel 安装本地执行引擎（macOS 用 `[crypto]`，Windows 用 `[windows]`），然后运行 `ixfdoc setup skills --runtimes codex --json` 注册 skill，最后用 `ixfdoc --version` 验证。
 
-如果你正在使用 Claude Code，可以直接对 Claude Code 说：
-
-> 请帮我从 https://github.com/serialq7ic4/ixunfei-docx-reader 安装 ixunfei-docx-reader。先安装 GitHub Release wheel（macOS 用 `[crypto]`，Windows 用 `[windows]`），再运行 `ixfdoc setup skills --runtimes claude-code --json` 安装 Claude Code skill，最后用 `ixfdoc --version` 验证。
-
-下面是手动安装方式。
-
-### 手动安装
-
-从 GitHub Release 安装：
+手动命令：
 
 ```bash
 python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+ixfdoc setup skills --runtimes codex --json
 ixfdoc --version
 ```
 
-本地开发安装：
+### 安装到 Claude Code
+
+如果你正在使用 Claude Code，可以直接对 Claude Code 说：
+
+> 请帮我把 https://github.com/serialq7ic4/ixunfei-docx-reader 安装为 Claude Code skill。使用 GitHub Release wheel 安装本地执行引擎（macOS 用 `[crypto]`，Windows 用 `[windows]`），然后运行 `ixfdoc setup skills --runtimes claude-code --json` 注册 skill，最后用 `ixfdoc --version` 验证。
+
+手动命令：
 
 ```bash
-git clone https://github.com/serialq7ic4/ixunfei-docx-reader.git
-cd ixunfei-docx-reader
-python -m pip install -e ".[crypto,dev]"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+ixfdoc setup skills --runtimes claude-code --json
 ixfdoc --version
 ```
 
-Windows cookie 导出目前仍是实验支持：
+### 同时安装到两个 agent
+
+```bash
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+ixfdoc setup skills --runtimes auto --json
+ixfdoc --version
+```
+
+Windows cookie 导出目前仍是实验支持。Windows 安装时把 `[crypto]` 换成 `[windows]`：
 
 ```bash
 python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
 ```
 
-`crypto` 用于 macOS cookie 解密。`dev` 用于测试和本地 release build。Windows 已有 CI 和单元测试覆盖，但还需要在真实 Windows i讯飞/LarkShell 桌面端登录环境验证后，才会提升为 Tier 1 支持。
+`crypto` 用于 macOS cookie 解密。Windows 已有 CI 和单元测试覆盖，但还需要在真实 Windows i讯飞/LarkShell 桌面端登录环境验证后，才会提升为 Tier 1 支持。
 
-## 快速开始
+## 在 Agent 里使用
+
+安装 skill 后，在 Codex / Claude Code 里直接贴 i讯飞/LarkShell 私有文档链接即可，例如：
+
+> 请用 ixunfei-docx-reader 读取并总结这个文档：https://your-domain.xfchat.iflytek.com/wiki/xxxx
+
+也可以让 agent 读取多个链接并综合分析：
+
+> 请用 ixunfei-docx-reader 读取下面 3 个 i讯飞文档，提取关键结论、数据支撑和待办事项：<link-1> <link-2> <link-3>
+
+第一次读取私有文档前，需要先确保本机 i讯飞/LarkShell 桌面端已登录。skill 会通过 `ixfdoc` 复用本机登录态，并把文档转换为本地 Markdown/TSV 供 agent 分析。
+
+## 底层命令
+
+通常不需要手动调用这些命令；它们主要用于调试、自动化或排查登录态问题。
+
+| 命令 | 用途 |
+|---|---|
+| `ixfdoc setup skills` | 安装 Codex / Claude Code skill |
+| `ixfdoc read <source>...` | 将私有链接或本地 Markdown 文件读取为 Markdown/TSV 产物 |
+| `ixfdoc cookies export` | 从本机 i讯飞/LarkShell 桌面端会话导出 cookie |
+| `ixfdoc doctor` | 检查运行环境和 cookie 元数据，不打印 cookie 值 |
+| `ixfdoc --version` | 输出当前本地执行引擎版本 |
+
+## 手动读取流程
+
+如果需要绕过 agent skill 做底层调试，可以手动执行：
 
 1. 打开 i讯飞/LarkShell 桌面端，并确认已经登录。
 2. 导出本地会话 cookie。
@@ -101,16 +135,6 @@ ixfdoc read \
 
 生成的 Markdown 和 TSV 都是本地文件。如果源文档敏感，这些产物也应按敏感数据处理。
 
-## 命令
-
-| 命令 | 用途 |
-|---|---|
-| `ixfdoc read <source>...` | 将私有链接或本地 Markdown 文件读取为 Markdown/TSV 产物 |
-| `ixfdoc cookies export` | 从本机 i讯飞/LarkShell 桌面端会话导出 cookie |
-| `ixfdoc doctor` | 检查运行环境和 cookie 元数据，不打印 cookie 值 |
-| `ixfdoc setup skills` | 安装 Codex / Claude Code skill |
-| `ixfdoc --version` | 输出当前 CLI 版本 |
-
 常用读取参数：
 
 | 参数 | 用途 |
@@ -134,23 +158,6 @@ ixfdoc read "<private-link>" \
 ```
 
 `--cleanup` 只会删除本次命令生成的文件，不会递归删除输出目录里的其他内容。
-
-## Codex / Claude Code 使用
-
-安装 Codex 和 Claude Code skill：
-
-```bash
-ixfdoc setup skills --runtimes auto --json
-```
-
-只安装某一个运行时：
-
-```bash
-ixfdoc setup skills --runtimes codex --json
-ixfdoc setup skills --runtimes claude-code --json
-```
-
-安装后，在 Codex / Claude Code 里直接贴 i讯飞/LarkShell 私有文档链接，让 agent 使用 `ixunfei-docx-reader` skill 读取文档。
 
 这些 skill 不重复实现文档解析逻辑。它们调用 `ixfdoc read`，读取 CLI 的 manifest / JSON error contract，并按 CLI 返回的 hint 处理错误。
 
@@ -194,6 +201,8 @@ Linux 不支持，因为 i讯飞没有 Linux 桌面客户端。
 ## 开发
 
 ```bash
+git clone https://github.com/serialq7ic4/ixunfei-docx-reader.git
+cd ixunfei-docx-reader
 python -m pip install -e ".[crypto,dev]"
 python -m compileall -q src
 python -m pytest -q

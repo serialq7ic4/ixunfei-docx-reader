@@ -12,7 +12,7 @@ Let Codex, Claude Code, and other local coding agents read authorized i讯飞/La
   <img alt="license" src="https://img.shields.io/badge/license-Apache%202.0-green">
 </p>
 
-`ixunfei-docx-reader` is primarily used through Codex / Claude Code skills. `ixfdoc` is the local execution engine those skills call, and it can also be used directly for debugging and automation.
+`ixunfei-docx-reader` is installed and used as a Codex / Claude Code skill by default. `ixfdoc` is the local execution engine required by the skill, and it can also be used directly for debugging and automation.
 
 - Paste private i讯飞/LarkShell `docx` and `wiki` links in Codex / Claude Code and read them as Markdown.
 - Expand supported embedded sheets into TSV sidecar files.
@@ -35,47 +35,81 @@ Compared with browser-extension projects such as LarkSnap, this project focuses 
 
 The design rule is simple: Codex / Claude Code skills are the user-facing entry points; parsing, cookie export, diagnostics, and conversion are centralized in the local `ixfdoc` execution engine so each agent integration does not reimplement the reader.
 
-## Install
+## Install Into Codex / Claude Code
 
-### Recommended: Ask Your Agent To Install It
+The recommended path is to let the agent you are already using install the skill. Installation first installs the `ixunfei-docx-reader` Python package, then registers the `ixunfei-docx-reader` skill into Codex or Claude Code.
+
+### Install Into Codex
 
 If you are using Codex, ask Codex:
 
-> Please install ixunfei-docx-reader from https://github.com/serialq7ic4/ixunfei-docx-reader. Install the GitHub Release wheel first (`[crypto]` on macOS, `[windows]` on Windows), then run `ixfdoc setup skills --runtimes codex --json` to install the Codex skill, and verify with `ixfdoc --version`.
+> Please install https://github.com/serialq7ic4/ixunfei-docx-reader as a Codex skill. Install the GitHub Release wheel as the local execution engine (`[crypto]` on macOS, `[windows]` on Windows), then run `ixfdoc setup skills --runtimes codex --json` to register the skill, and verify with `ixfdoc --version`.
 
-If you are using Claude Code, ask Claude Code:
-
-> Please install ixunfei-docx-reader from https://github.com/serialq7ic4/ixunfei-docx-reader. Install the GitHub Release wheel first (`[crypto]` on macOS, `[windows]` on Windows), then run `ixfdoc setup skills --runtimes claude-code --json` to install the Claude Code skill, and verify with `ixfdoc --version`.
-
-Manual installation is documented below.
-
-### Manual Install
-
-From GitHub Release:
+Manual commands:
 
 ```bash
 python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+ixfdoc setup skills --runtimes codex --json
 ixfdoc --version
 ```
 
-For local development:
+### Install Into Claude Code
+
+If you are using Claude Code, ask Claude Code:
+
+> Please install https://github.com/serialq7ic4/ixunfei-docx-reader as a Claude Code skill. Install the GitHub Release wheel as the local execution engine (`[crypto]` on macOS, `[windows]` on Windows), then run `ixfdoc setup skills --runtimes claude-code --json` to register the skill, and verify with `ixfdoc --version`.
+
+Manual commands:
 
 ```bash
-git clone https://github.com/serialq7ic4/ixunfei-docx-reader.git
-cd ixunfei-docx-reader
-python -m pip install -e ".[crypto,dev]"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+ixfdoc setup skills --runtimes claude-code --json
 ixfdoc --version
 ```
 
-For experimental Windows cookie export:
+### Install Into Both Agents
+
+```bash
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+ixfdoc setup skills --runtimes auto --json
+ixfdoc --version
+```
+
+Windows cookie export is still experimental. On Windows, replace `[crypto]` with `[windows]`:
 
 ```bash
 python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
 ```
 
-`crypto` is needed for macOS cookie decryption. `dev` is for tests and release builds. Windows support is covered by CI and unit tests, but still needs validation on a real Windows i讯飞/LarkShell desktop client before it is treated as Tier 1.
+`crypto` is needed for macOS cookie decryption. Windows support is covered by CI and unit tests, but still needs validation on a real Windows i讯飞/LarkShell desktop client before it is treated as Tier 1.
 
-## Quick Start
+## Use In Your Agent
+
+After installing the skill, paste i讯飞/LarkShell private document links directly in Codex / Claude Code, for example:
+
+> Please use ixunfei-docx-reader to read and summarize this document: https://your-domain.xfchat.iflytek.com/wiki/xxxx
+
+You can also ask the agent to read multiple links and synthesize them:
+
+> Please use ixunfei-docx-reader to read these 3 i讯飞 documents, then extract key conclusions, supporting data, and action items: <link-1> <link-2> <link-3>
+
+Before the first private document read, make sure the local i讯飞/LarkShell desktop client is logged in. The skill uses `ixfdoc` to reuse that local session and convert documents into local Markdown/TSV artifacts for agent analysis.
+
+## Underlying Commands
+
+You usually do not need to call these manually. They are mainly for debugging, automation, or diagnosing local login state.
+
+| Command | Purpose |
+|---|---|
+| `ixfdoc setup skills` | Install Codex / Claude Code skills |
+| `ixfdoc read <source>...` | Read private links or local Markdown files into Markdown/TSV outputs |
+| `ixfdoc cookies export` | Export cookies from the local i讯飞/LarkShell desktop session |
+| `ixfdoc doctor` | Inspect runtime and cookie metadata without printing cookie values |
+| `ixfdoc --version` | Print the local execution engine version |
+
+## Manual Read Flow
+
+If you need to bypass the agent skill for low-level debugging:
 
 1. Open i讯飞/LarkShell desktop and confirm you are logged in.
 2. Export local session cookies.
@@ -101,16 +135,6 @@ ixfdoc read \
 
 The generated Markdown and TSV files are local artifacts. Treat them as sensitive if the source document is sensitive.
 
-## Commands
-
-| Command | Purpose |
-|---|---|
-| `ixfdoc read <source>...` | Read private links or local Markdown files into Markdown/TSV outputs |
-| `ixfdoc cookies export` | Export cookies from the local i讯飞/LarkShell desktop session |
-| `ixfdoc doctor` | Inspect runtime and cookie metadata without printing cookie values |
-| `ixfdoc setup skills` | Install Codex / Claude Code skills |
-| `ixfdoc --version` | Print the installed CLI version |
-
 Common read options:
 
 | Option | Purpose |
@@ -134,23 +158,6 @@ ixfdoc read "<private-link>" \
 ```
 
 `--cleanup` removes only files generated by the current command. It does not recursively delete unrelated files in the output directory.
-
-## Codex / Claude Code Usage
-
-Install local skills for Codex and Claude Code:
-
-```bash
-ixfdoc setup skills --runtimes auto --json
-```
-
-Install only one runtime:
-
-```bash
-ixfdoc setup skills --runtimes codex --json
-ixfdoc setup skills --runtimes claude-code --json
-```
-
-After installation, paste i讯飞/LarkShell private document links in Codex / Claude Code and ask the agent to use the `ixunfei-docx-reader` skill.
 
 These skills do not implement their own document parser. They call `ixfdoc read`, consume the CLI manifest/error contract, and follow the returned hints.
 
@@ -194,6 +201,8 @@ See [`PRIVACY.md`](PRIVACY.md) and [`SECURITY.md`](SECURITY.md).
 ## Development
 
 ```bash
+git clone https://github.com/serialq7ic4/ixunfei-docx-reader.git
+cd ixunfei-docx-reader
 python -m pip install -e ".[crypto,dev]"
 python -m compileall -q src
 python -m pytest -q
