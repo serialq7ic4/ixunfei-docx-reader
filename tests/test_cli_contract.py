@@ -53,6 +53,15 @@ def test_doctor_json_reports_basic_runtime() -> None:
     assert payload["platform"] in {"macos", "windows", "other"}
 
 
+def test_setup_skills_json_outputs_machine_readable_status() -> None:
+    result = run_module("setup", "skills", "--runtimes", "none", "--json")
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["ok"] is True
+    assert payload["installed"] == []
+
+
 def test_doctor_json_reports_cookie_metadata_without_values(tmp_path: Path) -> None:
     cookies_path = tmp_path / "cookies.json"
     cookies_path.write_text(

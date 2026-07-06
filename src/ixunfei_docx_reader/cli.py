@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import re
 import sqlite3
@@ -101,6 +102,17 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("--host-like", default=DEFAULT_HOST_LIKE)
     export.add_argument("--keychain-service", default=DEFAULT_KEYCHAIN_SERVICE)
     export.add_argument("--keychain-account", default=DEFAULT_KEYCHAIN_ACCOUNT)
+
+    setup = subparsers.add_parser("setup", help="Install local agent integration helpers.")
+    setup_subparsers = setup.add_subparsers(dest="setup_command")
+    setup_subparsers.required = True
+    setup_skills = setup_subparsers.add_parser(
+        "skills",
+        help="Install Codex/Claude Code skill wrappers.",
+    )
+    setup_skills.add_argument("--runtimes", default="auto")
+    setup_skills.add_argument("--force", action="store_true")
+    setup_skills.add_argument("--json", action="store_true", dest="as_json")
 
     return parser
 
@@ -303,6 +315,26 @@ def run_cookies(args: argparse.Namespace) -> int:
     )
 
 
+def run_setup_skills(args: argparse.Namespace) -> int:
+    from ixunfei_docx_reader.setup import install_skill_wrappers
+
+    project_root = Path(__file__).resolve().parents[2]
+    payload = install_skill_wrappers(
+        project_root,
+        Path.home(),
+        args.runtimes.split(","),
+        args.force,
+        dict(os.environ),
+    )
+    if args.as_json:
+        print(json.dumps(payload, ensure_ascii=False))
+    else:
+        print(f"installed {len(payload['installed'])} wrapper(s)")
+        if payload["skipped"]:
+            print(f"skipped {len(payload['skipped'])} existing wrapper(s); pass --force to overwrite")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -315,6 +347,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_doctor(args)
     if args.command == "cookies":
         return run_cookies(args)
+    if args.command == "setup" and args.setup_command == "skills":
+        return run_setup_skills(args)
     parser.print_help(sys.stderr)
     return 2
 
