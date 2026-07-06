@@ -64,6 +64,30 @@ def test_setup_skills_json_outputs_machine_readable_status() -> None:
     assert payload["installed"] == []
 
 
+def test_setup_skills_invalid_runtime_returns_json_error() -> None:
+    result = run_module("setup", "skills", "--runtimes", "vim", "--json")
+
+    assert result.returncode == 2
+    assert "Traceback" not in result.stderr
+    payload = json.loads(result.stderr.strip().splitlines()[-1])
+    assert payload["ok"] is False
+    assert payload["error"]["type"] == "usage"
+    assert payload["error"]["subtype"] == "bad_args"
+    assert "unsupported runtime: vim" in payload["error"]["message"]
+
+
+def test_setup_skills_invalid_runtime_without_json_returns_json_error() -> None:
+    result = run_module("setup", "skills", "--runtimes", "vim")
+
+    assert result.returncode == 2
+    assert "Traceback" not in result.stderr
+    payload = json.loads(result.stderr.strip().splitlines()[-1])
+    assert payload["ok"] is False
+    assert payload["error"]["type"] == "usage"
+    assert payload["error"]["subtype"] == "bad_args"
+    assert "unsupported runtime: vim" in payload["error"]["message"]
+
+
 def test_doctor_json_reports_cookie_metadata_without_values(tmp_path: Path) -> None:
     cookies_path = tmp_path / "cookies.json"
     cookies_path.write_text(

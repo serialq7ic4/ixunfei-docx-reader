@@ -1,9 +1,10 @@
 import base64
-from pathlib import Path
 import json
+from pathlib import Path
 import sqlite3
 
 import pytest
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from ixunfei_docx_reader.cookies.windows_larkshell import (
@@ -12,6 +13,7 @@ from ixunfei_docx_reader.cookies.windows_larkshell import (
     export_cookies_from_db,
     find_cookie_db,
     find_local_state,
+    load_local_state_master_key,
     row_to_cookie,
     unwrap_local_state_key,
 )
@@ -145,7 +147,40 @@ def test_export_cookies_from_db_writes_browser_cookie_json(tmp_path: Path) -> No
     assert [cookie["value"] for cookie in cookies] == ["csrf"]
 
 
-def test_export_cookies_from_db_requires_non_empty_csrf(tmp_path: Path) -> None:
+def test_export_cookies_from_db_reports_non_empty_csrf(tmp_path: Path) -> None:
+    db = tmp_path / "Cookies"
+    conn = sqlite3.connect(db)
+    conn.execute(
+        """
+        CREATE TABLE cookies (
+            host_key TEXT,
+            name TEXT,
+            value TEXT,
+            encrypted_value BLOB,
+            path TEXT,
+            is_secure INTEGER
+        )
+        """
+    )
+    conn.execute(
+        "INSERT INTO cookies VALUES (?, ?, ?, ?, ?, ?)",
+        (".xfchat.iflytek.com", "_csrf_token", "", b"encrypted", "/", 1),
+    )
+    conn.commit()
+    conn.close()
+
+    payload = export_cookies_from_db(
+        db,
+        tmp_path / "cookies.json",
+        "%xfchat.iflytek.com%",
+        decrypt_value=lambda value: "csrf",
+    )
+
+    assert payload["cookieCount"] == 1
+    assert payload["hasCsrf"] is True
+
+
+def test_export_cookies_from_db_raises_when_csrf_value_is_empty(tmp_path: Path) -> None:
     db = tmp_path / "Cookies"
     conn = sqlite3.connect(db)
     conn.execute(
@@ -167,15 +202,134 @@ def test_export_cookies_from_db_requires_non_empty_csrf(tmp_path: Path) -> None:
     conn.commit()
     conn.close()
 
-    payload = export_cookies_from_db(
-        db,
-        tmp_path / "cookies.json",
-        "%xfchat.iflytek.com%",
-        decrypt_value=lambda value: "unused",
+    with pytest.raises(RuntimeError, match="do not contain a non-empty _csrf_token"):
+        export_cookies_from_db(
+            db,
+            tmp_path / "cookies.json",
+            "%xfchat.iflytek.com%",
+            decrypt_value=lambda value: "unused",
+        )
+
+
+def test_export_cookies_from_db_raises_when_csrf_cookie_is_missing(tmp_path: Path) -> None:
+    db = tmp_path / "Cookies"
+    conn = sqlite3.connect(db)
+    conn.execute(
+        """
+        CREATE TABLE cookies (
+            host_key TEXT,
+            name TEXT,
+            value TEXT,
+            encrypted_value BLOB,
+            path TEXT,
+            is_secure INTEGER
+        )
+        """
+    )
+    conn.execute(
+        "INSERT INTO cookies VALUES (?, ?, ?, ?, ?, ?)",
+        (".xfchat.iflytek.com", "session", "plain", b"", "/", 1),
+    )
+    conn.commit()
+    conn.close()
+
+    with pytest.raises(RuntimeError, match="do not contain a non-empty _csrf_token"):
+        export_cookies_from_db(
+            db,
+            tmp_path / "cookies.json",
+            "%xfchat.iflytek.com%",
+            decrypt_value=lambda value: "unused",
+        )
+
+
+def test_load_local_state_master_key_normalizes_bad_json(tmp_path: Path) -> None:
+    local_state = tmp_path / "Local State"
+    local_state.write_text("{not-json", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="Windows LarkShell Local State is invalid"):
+        load_local_state_master_key(local_state, dpapi_unprotect=lambda value: b"unused")
+
+
+def test_load_local_state_master_key_normalizes_empty_json(tmp_path: Path) -> None:
+    local_state = tmp_path / "Local State"
+    local_state.write_text("", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="Windows LarkShell Local State is invalid"):
+        load_local_state_master_key(local_state, dpapi_unprotect=lambda value: b"unused")
+
+
+def test_load_local_state_master_key_normalizes_non_object_json(tmp_path: Path) -> None:
+    local_state = tmp_path / "Local State"
+    local_state.write_text("[]", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="Windows LarkShell Local State is invalid"):
+        load_local_state_master_key(local_state, dpapi_unprotect=lambda value: b"unused")
+
+
+def test_load_local_state_master_key_normalizes_bad_base64(tmp_path: Path) -> None:
+    local_state = tmp_path / "Local State"
+    local_state.write_text(
+        json.dumps({"os_crypt": {"encrypted_key": "not valid base64!"}}),
+        encoding="utf-8",
     )
 
-    assert payload["cookieCount"] == 1
-    assert payload["hasCsrf"] is False
+    with pytest.raises(RuntimeError, match="Windows LarkShell Local State key is invalid"):
+        load_local_state_master_key(local_state, dpapi_unprotect=lambda value: b"unused")
+
+
+def test_load_local_state_master_key_normalizes_malformed_base64(tmp_path: Path) -> None:
+    local_state = tmp_path / "Local State"
+    local_state.write_text(
+        json.dumps({"os_crypt": {"encrypted_key": "abc"}}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="Windows LarkShell Local State key is invalid"):
+        load_local_state_master_key(local_state, dpapi_unprotect=lambda value: b"unused")
+
+
+def test_decrypt_chromium_cookie_value_normalizes_invalid_aes_gcm_tag() -> None:
+    master_key = b"k" * 32
+    nonce = b"n" * 12
+    encrypted = AESGCM(master_key).encrypt(nonce, b"csrf", None)
+
+    with pytest.raises(RuntimeError, match="Could not decrypt Windows Chromium cookie value"):
+        decrypt_chromium_cookie_value(b"v10" + nonce + encrypted[:-1] + b"x", master_key=master_key)
+
+
+def test_decrypt_chromium_cookie_value_normalizes_utf8_decode_errors() -> None:
+    with pytest.raises(RuntimeError, match="not valid UTF-8"):
+        decrypt_chromium_cookie_value(
+            b"legacy-encrypted",
+            master_key=b"k" * 32,
+            dpapi_unprotect=lambda encrypted: b"\xff",
+        )
+
+
+def test_decrypt_chromium_cookie_value_normalizes_dpapi_failures() -> None:
+    def fail_dpapi(encrypted: bytes) -> bytes:
+        raise OSError("fixture-dpapi-failure")
+
+    with pytest.raises(RuntimeError, match="Could not decrypt Windows cookie value"):
+        decrypt_chromium_cookie_value(
+            b"legacy-encrypted",
+            master_key=b"k" * 32,
+            dpapi_unprotect=fail_dpapi,
+        )
+
+
+def test_unwrap_local_state_key_normalizes_dpapi_failures() -> None:
+    def fail_dpapi(encrypted: bytes) -> bytes:
+        raise OSError("fixture-dpapi-failure")
+
+    encrypted_key = base64.b64encode(b"DPAPIwrapped").decode("ascii")
+
+    with pytest.raises(RuntimeError, match="Could not decrypt Windows LarkShell Local State key"):
+        unwrap_local_state_key(encrypted_key, dpapi_unprotect=fail_dpapi)
+
+
+def test_invalid_aes_gcm_tag_is_available_for_exception_contract() -> None:
+    assert InvalidTag.__name__ == "InvalidTag"
 
 
 def test_export_cookies_decrypts_versioned_aes_gcm_cookie_with_local_state(

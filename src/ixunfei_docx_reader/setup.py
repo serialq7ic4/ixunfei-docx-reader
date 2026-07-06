@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import ExitStack
+from importlib import resources
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +14,10 @@ class RuntimeTarget:
     label: str
     skills_dir: Path
     source_dir: Path
+
+
+def packaged_project_root() -> Path:
+    return resources.files("ixunfei_docx_reader").joinpath("_resources")
 
 
 def detect_runtime_targets(home: Path, env: Mapping[str, str]) -> list[RuntimeTarget]:
@@ -56,16 +62,17 @@ def install_skill_wrappers(
     selected = set(normalize_runtimes(runtimes))
     installed: list[dict[str, str]] = []
     skipped: list[dict[str, str]] = []
-    for target in detect_runtime_targets(home, env):
-        if target.key not in selected:
-            continue
-        source = project_root / target.source_dir
-        destination = target.skills_dir / "ixunfei-docx-reader"
-        if destination.exists() and not force:
-            skipped.append({"runtime": target.key, "path": str(destination), "reason": "exists"})
-            continue
-        if destination.exists():
-            shutil.rmtree(destination)
-        shutil.copytree(source, destination)
-        installed.append({"runtime": target.key, "path": str(destination)})
+    with ExitStack() as stack:
+        for target in detect_runtime_targets(home, env):
+            if target.key not in selected:
+                continue
+            source = stack.enter_context(resources.as_file(project_root / target.source_dir))
+            destination = target.skills_dir / "ixunfei-docx-reader"
+            if destination.exists() and not force:
+                skipped.append({"runtime": target.key, "path": str(destination), "reason": "exists"})
+                continue
+            if destination.exists():
+                shutil.rmtree(destination)
+            shutil.copytree(source, destination)
+            installed.append({"runtime": target.key, "path": str(destination)})
     return {"ok": True, "installed": installed, "skipped": skipped}

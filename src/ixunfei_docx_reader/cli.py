@@ -335,16 +335,23 @@ def run_cookies(args: argparse.Namespace) -> int:
 
 
 def run_setup_skills(args: argparse.Namespace) -> int:
-    from ixunfei_docx_reader.setup import install_skill_wrappers
+    from ixunfei_docx_reader.setup import install_skill_wrappers, packaged_project_root
 
-    project_root = Path(__file__).resolve().parents[2]
-    payload = install_skill_wrappers(
-        project_root,
-        Path.home(),
-        args.runtimes.split(","),
-        args.force,
-        dict(os.environ),
-    )
+    try:
+        payload = install_skill_wrappers(
+            packaged_project_root(),
+            Path.home(),
+            args.runtimes.split(","),
+            args.force,
+            dict(os.environ),
+        )
+    except ValueError as exc:
+        fail(
+            error_type="usage",
+            subtype="bad_args",
+            message=str(exc),
+            hint="Use --runtimes auto, all, none, codex, claude-code, or a comma-separated supported list.",
+        )
     if args.as_json:
         print(json.dumps(payload, ensure_ascii=False))
     else:

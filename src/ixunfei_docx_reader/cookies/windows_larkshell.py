@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 from collections.abc import Callable
 import json
 import os
@@ -99,6 +100,9 @@ def export_cookies_from_db(
     finally:
         conn.close()
     cookies = [row_to_cookie(dict(row), decrypt_value) for row in rows]
+    has_csrf = has_non_empty_csrf(cookies)
+    if not has_csrf:
+        raise RuntimeError("Exported cookies do not contain a non-empty _csrf_token.")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(cookies, ensure_ascii=False, indent=2), encoding="utf-8")
     try:
@@ -110,7 +114,7 @@ def export_cookies_from_db(
         "provider": "windows-larkshell",
         "output": str(output),
         "cookieCount": len(cookies),
-        "hasCsrf": has_non_empty_csrf(cookies),
+        "hasCsrf": has_csrf,
     }
 
 
@@ -121,7 +125,10 @@ def dpapi_unprotect(encrypted_value: bytes) -> bytes:
         raise RuntimeError(
             "pywin32 is required on Windows. Install with `python -m pip install -e \".[windows]\"`."
         ) from exc
-    _, decrypted = win32crypt.CryptUnprotectData(encrypted_value, None, None, None, 0)
+    try:
+        _, decrypted = win32crypt.CryptUnprotectData(encrypted_value, None, None, None, 0)
+    except Exception as exc:
+        raise RuntimeError("Could not decrypt Windows DPAPI-protected data.") from exc
     return bytes(decrypted)
 
 
@@ -129,17 +136,32 @@ def unwrap_local_state_key(
     encrypted_key: str,
     dpapi_unprotect: Callable[[bytes], bytes] = dpapi_unprotect,
 ) -> bytes:
-    wrapped_key = base64.b64decode(encrypted_key)
+    try:
+        wrapped_key = base64.b64decode(encrypted_key, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise RuntimeError("Windows LarkShell Local State key is invalid.") from exc
+    if not wrapped_key:
+        raise RuntimeError("Windows LarkShell Local State key is invalid.")
     if wrapped_key.startswith(b"DPAPI"):
         wrapped_key = wrapped_key[len(b"DPAPI") :]
-    return dpapi_unprotect(wrapped_key)
+    try:
+        return dpapi_unprotect(wrapped_key)
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError("Could not decrypt Windows LarkShell Local State key.") from exc
 
 
 def load_local_state_master_key(
     local_state: Path,
     dpapi_unprotect: Callable[[bytes], bytes] = dpapi_unprotect,
 ) -> bytes:
-    payload = json.loads(local_state.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(local_state.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Windows LarkShell Local State is invalid.") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError("Windows LarkShell Local State is invalid.")
     encrypted_key = payload.get("os_crypt", {}).get("encrypted_key")
     if not isinstance(encrypted_key, str) or not encrypted_key:
         raise RuntimeError("Windows LarkShell Local State does not contain os_crypt.encrypted_key")
@@ -163,12 +185,28 @@ def decrypt_chromium_cookie_value(
         ciphertext_and_tag = encrypted_value[15:]
         if len(nonce) != 12 or len(ciphertext_and_tag) < 16:
             raise RuntimeError("Chromium cookie encrypted_value is not a valid AES-GCM blob")
-        return AESGCM(master_key).decrypt(nonce, ciphertext_and_tag, None).decode("utf-8")
-    return dpapi_unprotect(encrypted_value).decode("utf-8")
+        try:
+            decrypted = AESGCM(master_key).decrypt(nonce, ciphertext_and_tag, None)
+        except Exception as exc:
+            raise RuntimeError("Could not decrypt Windows Chromium cookie value.") from exc
+        try:
+            return decrypted.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise RuntimeError("Decrypted Windows Chromium cookie value is not valid UTF-8.") from exc
+    try:
+        decrypted = dpapi_unprotect(encrypted_value)
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError("Could not decrypt Windows cookie value.") from exc
+    try:
+        return decrypted.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise RuntimeError("Decrypted Windows cookie value is not valid UTF-8.") from exc
 
 
 def decrypt_dpapi_value(encrypted_value: bytes) -> str:
-    return dpapi_unprotect(encrypted_value).decode("utf-8")
+    return decrypt_chromium_cookie_value(encrypted_value, master_key=b"", dpapi_unprotect=dpapi_unprotect)
 
 
 def export_cookies(
@@ -203,7 +241,11 @@ def export_cookies(
                 master_key=master_key,
                 dpapi_unprotect=dpapi_unprotect,
             )
-        return dpapi_unprotect(encrypted_value).decode("utf-8")
+        return decrypt_chromium_cookie_value(
+            encrypted_value,
+            master_key=b"",
+            dpapi_unprotect=dpapi_unprotect,
+        )
 
     return export_cookies_from_db(
         db_path,

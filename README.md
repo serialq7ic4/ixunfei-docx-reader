@@ -9,7 +9,7 @@ Read authorized i讯飞/LarkShell private documents into local Markdown/TSV file
 - Document content stays local unless you choose to send generated files elsewhere.
 - Cookie export uses your local desktop login session and never prints cookie values.
 
-Supported desktop-session platforms are macOS and Windows. Linux is not supported because i讯飞 does not ship a Linux desktop client.
+Supported desktop-session platforms are macOS and experimental Windows. Linux is not supported because i讯飞 does not ship a Linux desktop client.
 
 ## Commands
 
@@ -28,13 +28,13 @@ python -m pip install -e ".[crypto,dev]"
 ixfdoc --version
 ```
 
-For Windows cookie export:
+For experimental Windows cookie export:
 
 ```bash
 python -m pip install -e ".[windows]"
 ```
 
-`crypto` is needed for macOS cookie decryption. `dev` is for tests and local release builds.
+`crypto` is needed for macOS cookie decryption. `dev` is for tests and local release builds. Windows support is CI-tested with `pywin32`, but still needs live LarkShell validation before being treated as Tier 1.
 
 Release build notes live in [`docs/release.md`](docs/release.md).
 
@@ -66,7 +66,7 @@ Remote reader parity with the original skill is being migrated incrementally.
 
 ## Authentication
 
-On macOS or Windows, export the local i讯飞/LarkShell desktop session cookies before reading private links:
+On macOS, or on experimental Windows builds, export the local i讯飞/LarkShell desktop session cookies before reading private links:
 
 ```bash
 ixfdoc cookies export --provider auto --output /tmp/ixunfei_profile_explorer_cookies.json
