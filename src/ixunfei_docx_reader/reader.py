@@ -16,6 +16,7 @@ import requests
 
 from ixunfei_docx_reader.converters.docx_markdown import convert_docx_client_vars
 from ixunfei_docx_reader.converters.docx_markdown import ConversionOptions
+from ixunfei_docx_reader.converters.docx_markdown import extract_text
 
 
 DEFAULT_SPACE_API = "https://internal-api-space.xfchat.iflytek.com"
@@ -634,7 +635,7 @@ def read_remote(
         counts["sheet_expanded"] = len(sheet_cache)
     root = data.get("block_map", {}).get(token, {})
     root_data = root.get("data", root) if isinstance(root, dict) else {}
-    title = str(root_data.get("text", "") or token) if isinstance(root_data, dict) else token
+    title = extract_text(root_data) or token if isinstance(root_data, dict) else token
     return kind, title, token, body, counts
 
 

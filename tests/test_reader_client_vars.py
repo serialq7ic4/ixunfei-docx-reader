@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import ixunfei_docx_reader.reader as reader
 from ixunfei_docx_reader.reader import client_vars
 
 
@@ -82,3 +83,37 @@ def test_client_vars_merges_cursor_pages_into_initial_payload() -> None:
     assert len(session.urls) == 2
     assert "mode=4" in session.urls[1]
     assert "cursor=next-cursor" in session.urls[1]
+
+
+def test_read_remote_uses_readable_text_for_rich_text_page_title(monkeypatch: Any) -> None:
+    client_vars_data = {
+        "block_map": {
+            "page_1": {
+                "data": {
+                    "type": "page",
+                    "children": [],
+                    "text": {
+                        "apool": {"nextNum": 1},
+                        "initialAttributedTexts": {
+                            "attribs": {"0": "*0+e"},
+                            "text": {"0": "Readable Title"},
+                        },
+                    },
+                }
+            }
+        }
+    }
+    monkeypatch.setattr(reader, "fetch_html", lambda *args: "")
+    monkeypatch.setattr(reader, "extract_doc_token", lambda *args: "page_1")
+    monkeypatch.setattr(reader, "client_vars", lambda *args: client_vars_data)
+
+    _, title, _, body, _ = reader.read_remote(
+        object(),  # type: ignore[arg-type]
+        "https://example.com/docx/page_1",
+        "https://internal-api-space.xfchat.iflytek.com",
+        "csrf-fixture",
+        False,
+    )
+
+    assert title == "Readable Title"
+    assert body == "# Readable Title\n"
