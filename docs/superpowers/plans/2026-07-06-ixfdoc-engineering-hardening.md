@@ -1,8 +1,10 @@
 # ixfdoc Engineering Hardening Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Turn `ixunfei-docx-reader` from a working local CLI into a small, installable, testable public project with thin Codex and Claude Code skill wrappers.
+
+**Execution Status (2026-07-06):** Completed. The CLI-first package, Codex/Claude Code wrappers, CI, release workflow, macOS support, Windows experimental cookie provider, public docs, smoke scripts, and `v0.1.0` GitHub Release are implemented and verified. Follow-up outside this hardening plan: validate Windows cookie export on a real Windows LarkShell client before promoting Windows from experimental to Tier 1.
 
 **Architecture:** Keep `ixfdoc` as the only source of truth for reading, cookie export, diagnostics, and conversion. Keep agent skills as thin wrapper instructions that call the CLI and follow its JSON error contract. Add only lightweight setup, CI, and platform-provider boundaries; do not add a daemon, browser extension, GUI, hidden state service, or multi-skill product framework.
 
@@ -56,7 +58,7 @@
 - Produces: `install_skill_wrappers(project_root: Path, home: Path, runtimes: list[str], force: bool, env: Mapping[str, str]) -> dict[str, object]`
 - Produces CLI command: `ixfdoc setup skills --runtimes auto|codex|claude-code|all|none --force --json`
 
-- [ ] **Step 1: Write failing runtime detection tests**
+- [x] **Step 1: Write failing runtime detection tests**
 
 ```python
 from pathlib import Path
@@ -85,13 +87,13 @@ def test_detect_runtime_targets_defaults_to_known_local_dirs(tmp_path: Path) -> 
     assert by_key["claude-code"].skills_dir == tmp_path / ".claude" / "skills"
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m pytest tests/test_setup.py -q`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'ixunfei_docx_reader.setup'`.
 
-- [ ] **Step 3: Implement runtime target detection**
+- [x] **Step 3: Implement runtime target detection**
 
 ```python
 from __future__ import annotations
@@ -125,13 +127,13 @@ def detect_runtime_targets(home: Path, env: Mapping[str, str]) -> list[RuntimeTa
     ]
 ```
 
-- [ ] **Step 4: Run detection tests**
+- [x] **Step 4: Run detection tests**
 
 Run: `python -m pytest tests/test_setup.py -q`
 
 Expected: PASS.
 
-- [ ] **Step 5: Write failing wrapper install tests**
+- [x] **Step 5: Write failing wrapper install tests**
 
 ```python
 from pathlib import Path
@@ -178,13 +180,13 @@ def test_install_skill_wrappers_refuses_overwrite_without_force(tmp_path: Path) 
     assert payload["skipped"][0]["reason"] == "exists"
 ```
 
-- [ ] **Step 6: Run wrapper install tests to verify they fail**
+- [x] **Step 6: Run wrapper install tests to verify they fail**
 
 Run: `python -m pytest tests/test_setup.py -q`
 
 Expected: FAIL with `ImportError` for `install_skill_wrappers` or assertion failures.
 
-- [ ] **Step 7: Implement minimal wrapper installer**
+- [x] **Step 7: Implement minimal wrapper installer**
 
 ```python
 import shutil
@@ -232,13 +234,13 @@ def install_skill_wrappers(
     return {"ok": True, "installed": installed, "skipped": skipped}
 ```
 
-- [ ] **Step 8: Run setup tests**
+- [x] **Step 8: Run setup tests**
 
 Run: `python -m pytest tests/test_setup.py -q`
 
 Expected: PASS.
 
-- [ ] **Step 9: Add CLI parser and handler tests**
+- [x] **Step 9: Add CLI parser and handler tests**
 
 ```python
 import json
@@ -270,13 +272,13 @@ def test_setup_skills_json_outputs_machine_readable_status(tmp_path: Path) -> No
     assert payload["installed"] == []
 ```
 
-- [ ] **Step 10: Run CLI setup test to verify it fails**
+- [x] **Step 10: Run CLI setup test to verify it fails**
 
 Run: `python -m pytest tests/test_cli_contract.py::test_setup_skills_json_outputs_machine_readable_status -q`
 
 Expected: FAIL because `setup` is not a known command.
 
-- [ ] **Step 11: Implement `ixfdoc setup skills`**
+- [x] **Step 11: Implement `ixfdoc setup skills`**
 
 Add to `build_parser()`:
 
@@ -320,13 +322,13 @@ def run_setup_skills(args: argparse.Namespace) -> int:
     return 0
 ```
 
-- [ ] **Step 12: Run setup and existing tests**
+- [x] **Step 12: Run setup and existing tests**
 
 Run: `python -m pytest tests/test_setup.py tests/test_cli_contract.py -q`
 
 Expected: PASS.
 
-- [ ] **Step 13: Commit**
+- [x] **Step 13: Commit**
 
 ```bash
 git add src/ixunfei_docx_reader/setup.py src/ixunfei_docx_reader/cli.py tests/test_setup.py tests/test_cli_contract.py
@@ -346,7 +348,7 @@ git commit -m "feat: add skill wrapper setup command"
 - Consumes: existing pytest suite
 - Produces: GitHub Actions workflow running tests and compile checks on macOS and Windows
 
-- [ ] **Step 1: Add minimal lint dependency**
+- [x] **Step 1: Add minimal lint dependency**
 
 Modify `pyproject.toml`:
 
@@ -357,7 +359,7 @@ dev = [
 ]
 ```
 
-- [ ] **Step 2: Create CI workflow**
+- [x] **Step 2: Create CI workflow**
 
 ```yaml
 name: CI
@@ -392,7 +394,7 @@ jobs:
         run: python -m ruff check .
 ```
 
-- [ ] **Step 3: Run the CI-equivalent commands locally**
+- [x] **Step 3: Run the CI-equivalent commands locally**
 
 Run:
 
@@ -405,7 +407,7 @@ python -m ruff check .
 
 Expected: all commands exit 0.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add pyproject.toml .github/workflows/ci.yml
@@ -426,7 +428,7 @@ git commit -m "ci: add python test workflow"
 - Consumes: Python package metadata in `pyproject.toml`
 - Produces: GitHub release workflow that builds wheel/sdist on tag push
 
-- [ ] **Step 1: Add build dependency to dev extras**
+- [x] **Step 1: Add build dependency to dev extras**
 
 Modify `pyproject.toml`:
 
@@ -438,7 +440,7 @@ dev = [
 ]
 ```
 
-- [ ] **Step 2: Create release workflow**
+- [x] **Step 2: Create release workflow**
 
 ```yaml
 name: Release
@@ -467,7 +469,7 @@ jobs:
           path: dist/*
 ```
 
-- [ ] **Step 3: Add release documentation**
+- [x] **Step 3: Add release documentation**
 
 ```markdown
 # Release
@@ -498,7 +500,7 @@ The GitHub Actions release workflow builds `sdist` and `wheel` artifacts and upl
 Do not publish to PyPI until the README, privacy notes, and Windows support status are current.
 ```
 
-- [ ] **Step 4: Link release docs from README**
+- [x] **Step 4: Link release docs from README**
 
 Add under `Install`:
 
@@ -506,7 +508,7 @@ Add under `Install`:
 Release build notes live in [`docs/release.md`](docs/release.md).
 ```
 
-- [ ] **Step 5: Run local build checks**
+- [x] **Step 5: Run local build checks**
 
 Run:
 
@@ -518,7 +520,7 @@ python -m pytest -q
 
 Expected: build creates `dist/*.whl` and `dist/*.tar.gz`; tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add pyproject.toml .github/workflows/release.yml docs/release.md README.md
@@ -541,7 +543,7 @@ git commit -m "ci: add release packaging workflow"
 - Produces CLI provider: `ixfdoc cookies export --provider windows-larkshell`
 - Produces `--provider auto` routing to Windows provider when `platform.system().lower() == "windows"`
 
-- [ ] **Step 1: Write failing Windows unsupported-environment tests**
+- [x] **Step 1: Write failing Windows unsupported-environment tests**
 
 ```python
 from pathlib import Path
@@ -563,13 +565,13 @@ def test_find_cookie_db_raises_when_missing(tmp_path: Path) -> None:
         find_cookie_db(cookies_db=None, app_data=tmp_path)
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m pytest tests/test_windows_cookie_provider.py -q`
 
 Expected: FAIL with `ModuleNotFoundError`.
 
-- [ ] **Step 3: Implement provider discovery skeleton**
+- [x] **Step 3: Implement provider discovery skeleton**
 
 ```python
 from __future__ import annotations
@@ -598,13 +600,13 @@ def find_cookie_db(cookies_db: Path | None, app_data: Path | None) -> Path:
     raise FileNotFoundError("Windows LarkShell cookie DB not found under APPDATA")
 ```
 
-- [ ] **Step 4: Run skeleton tests**
+- [x] **Step 4: Run skeleton tests**
 
 Run: `python -m pytest tests/test_windows_cookie_provider.py -q`
 
 Expected: PASS.
 
-- [ ] **Step 5: Write failing CLI provider test**
+- [x] **Step 5: Write failing CLI provider test**
 
 ```python
 import subprocess
@@ -633,13 +635,13 @@ def test_cookies_export_accepts_windows_larkshell_provider() -> None:
     assert "Windows LarkShell cookie DB not found" in result.stderr
 ```
 
-- [ ] **Step 6: Run CLI provider test to verify it fails**
+- [x] **Step 6: Run CLI provider test to verify it fails**
 
 Run: `python -m pytest tests/test_cli_contract.py::test_cookies_export_accepts_windows_larkshell_provider -q`
 
 Expected: FAIL because argparse rejects `windows-larkshell`.
 
-- [ ] **Step 7: Wire provider into CLI without full DPAPI yet**
+- [x] **Step 7: Wire provider into CLI without full DPAPI yet**
 
 Modify imports:
 
@@ -687,7 +689,7 @@ def export_cookies(output: Path, app_data: Path | None = None, cookies_db: Path 
     raise RuntimeError("Windows cookie decryption is not implemented yet.")
 ```
 
-- [ ] **Step 8: Run provider tests**
+- [x] **Step 8: Run provider tests**
 
 Run:
 
@@ -697,7 +699,7 @@ python -m pytest tests/test_windows_cookie_provider.py tests/test_cli_contract.p
 
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/ixunfei_docx_reader/cookies/windows_larkshell.py src/ixunfei_docx_reader/cli.py tests/test_windows_cookie_provider.py tests/test_cli_contract.py
@@ -719,7 +721,7 @@ git commit -m "feat: add windows cookie provider skeleton"
 - Produces: JSON browser cookie objects compatible with existing `load_cookie_objects`
 - Produces optional dependency group: `windows = ["pywin32>=306"]`
 
-- [ ] **Step 1: Add Windows optional dependency**
+- [x] **Step 1: Add Windows optional dependency**
 
 Modify `pyproject.toml`:
 
@@ -729,7 +731,7 @@ windows = [
 ]
 ```
 
-- [ ] **Step 2: Write unit tests for injectable decryptor**
+- [x] **Step 2: Write unit tests for injectable decryptor**
 
 ```python
 from pathlib import Path
@@ -769,13 +771,13 @@ def test_row_to_cookie_decrypts_encrypted_value() -> None:
     assert cookie["secure"] is False
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `python -m pytest tests/test_windows_cookie_provider.py -q`
 
 Expected: FAIL because `row_to_cookie` does not exist.
 
-- [ ] **Step 4: Implement row conversion**
+- [x] **Step 4: Implement row conversion**
 
 ```python
 from collections.abc import Callable
@@ -796,7 +798,7 @@ def row_to_cookie(row: dict[str, Any], decrypt_value: Callable[[bytes], str]) ->
     }
 ```
 
-- [ ] **Step 5: Add SQLite export test with injected decryptor**
+- [x] **Step 5: Add SQLite export test with injected decryptor**
 
 ```python
 import sqlite3
@@ -831,13 +833,13 @@ def test_export_cookies_from_db_writes_browser_cookie_json(tmp_path: Path) -> No
     assert output.read_text(encoding="utf-8").count("csrf") == 1
 ```
 
-- [ ] **Step 6: Run export test to verify it fails**
+- [x] **Step 6: Run export test to verify it fails**
 
 Run: `python -m pytest tests/test_windows_cookie_provider.py::test_export_cookies_from_db_writes_browser_cookie_json -q`
 
 Expected: FAIL because `export_cookies_from_db` does not exist.
 
-- [ ] **Step 7: Implement SQLite export with file permissions**
+- [x] **Step 7: Implement SQLite export with file permissions**
 
 ```python
 import json
@@ -881,7 +883,7 @@ def export_cookies_from_db(
     }
 ```
 
-- [ ] **Step 8: Implement DPAPI decryptor**
+- [x] **Step 8: Implement DPAPI decryptor**
 
 ```python
 def decrypt_dpapi_value(encrypted_value: bytes) -> str:
@@ -908,13 +910,13 @@ def export_cookies(
     return export_cookies_from_db(db_path, output, host_like, decrypt_dpapi_value)
 ```
 
-- [ ] **Step 9: Run provider tests**
+- [x] **Step 9: Run provider tests**
 
 Run: `python -m pytest tests/test_windows_cookie_provider.py -q`
 
 Expected: PASS.
 
-- [ ] **Step 10: Update platform docs**
+- [x] **Step 10: Update platform docs**
 
 Add to `docs/supported-platforms.md`:
 
@@ -934,7 +936,7 @@ ixfdoc doctor --json --cookies %TEMP%\\ixunfei_profile_explorer_cookies.json
 Do not use this on Linux; i讯飞 does not ship a Linux desktop client.
 ```
 
-- [ ] **Step 11: Run full verification**
+- [x] **Step 11: Run full verification**
 
 Run:
 
@@ -945,7 +947,7 @@ python -m pytest -q
 
 Expected: PASS.
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add pyproject.toml src/ixunfei_docx_reader/cookies/windows_larkshell.py tests/test_windows_cookie_provider.py docs/supported-platforms.md
@@ -967,7 +969,7 @@ git commit -m "feat: support windows larkshell cookie export"
 - Consumes: CLI commands from Tasks 1-5
 - Produces: public-facing README that explains CLI-first architecture, supported platforms, Codex/Claude Code installation, and privacy boundaries
 
-- [ ] **Step 1: Rewrite README positioning section**
+- [x] **Step 1: Rewrite README positioning section**
 
 Use this concise opening:
 
@@ -984,7 +986,7 @@ Read authorized i讯飞/LarkShell private documents into local Markdown/TSV file
 - Cookie export uses your local desktop login session and never prints cookie values.
 ```
 
-- [ ] **Step 2: Add install section**
+- [x] **Step 2: Add install section**
 
 ```markdown
 ## Install
@@ -1003,7 +1005,7 @@ python -m pip install -e ".[windows]"
 ```
 ```
 
-- [ ] **Step 3: Add skill wrapper setup section**
+- [x] **Step 3: Add skill wrapper setup section**
 
 ```markdown
 ## Agent Wrappers
@@ -1017,7 +1019,7 @@ ixfdoc setup skills --runtimes auto --json
 The wrappers do not parse documents. They call `ixfdoc read`, parse the CLI JSON error contract, and follow the returned hint.
 ```
 
-- [ ] **Step 4: Add privacy warning**
+- [x] **Step 4: Add privacy warning**
 
 ```markdown
 ## Privacy
@@ -1025,7 +1027,7 @@ The wrappers do not parse documents. They call `ixfdoc read`, parse the CLI JSON
 Treat exported cookies and generated Markdown/TSV as sensitive. Do not commit them. Do not paste cookie values into issues, logs, or prompts.
 ```
 
-- [ ] **Step 5: Run docs command smoke tests**
+- [x] **Step 5: Run docs command smoke tests**
 
 Run:
 
@@ -1037,7 +1039,7 @@ ixfdoc setup skills --runtimes none --json
 
 Expected: each command exits 0 and prints no cookie values.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add README.md PRIVACY.md SECURITY.md docs/supported-platforms.md
@@ -1058,7 +1060,7 @@ git commit -m "docs: clarify cli-first public positioning"
 - Consumes: installed editable package
 - Produces: maintainers can run one smoke command before release
 
-- [ ] **Step 1: Create POSIX smoke script**
+- [x] **Step 1: Create POSIX smoke script**
 
 ```sh
 #!/bin/sh
@@ -1071,7 +1073,7 @@ ixfdoc doctor --json >/dev/null
 ixfdoc setup skills --runtimes none --json >/dev/null
 ```
 
-- [ ] **Step 2: Create PowerShell smoke script**
+- [x] **Step 2: Create PowerShell smoke script**
 
 ```powershell
 $ErrorActionPreference = "Stop"
@@ -1083,19 +1085,19 @@ ixfdoc doctor --json | Out-Null
 ixfdoc setup skills --runtimes none --json | Out-Null
 ```
 
-- [ ] **Step 3: Mark POSIX smoke script executable**
+- [x] **Step 3: Mark POSIX smoke script executable**
 
 Run: `chmod +x scripts/smoke.sh`
 
 Expected: command exits 0.
 
-- [ ] **Step 4: Run POSIX smoke script**
+- [x] **Step 4: Run POSIX smoke script**
 
 Run: `scripts/smoke.sh`
 
 Expected: command exits 0.
 
-- [ ] **Step 5: Document smoke scripts**
+- [x] **Step 5: Document smoke scripts**
 
 Add to `README.md`:
 
@@ -1113,7 +1115,7 @@ scripts\\smoke.ps1
 ```
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add scripts/smoke.sh scripts/smoke.ps1 README.md
