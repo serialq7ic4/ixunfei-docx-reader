@@ -2,9 +2,9 @@
 
 **简体中文** | [English](README.en.md)
 
-把已授权访问的 i讯飞/LarkShell 私有文档读取为本地 Markdown/TSV 文件，方便 Codex、Claude Code 等本地 coding agent 分析。
+让 Codex、Claude Code 等本地 coding agent 读取已授权访问的 i讯飞/LarkShell 私有文档，并转换为本地 Markdown/TSV 供分析使用。
 
-> CLI-first，复用本机登录态，无服务端，无遥测，不需要飞书开放平台应用。
+> 面向 Codex / Claude Code 使用，`ixfdoc` 作为本地执行引擎；复用本机登录态，无服务端，无遥测，不需要飞书开放平台应用。
 
 <p>
   <img alt="python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB">
@@ -12,30 +12,44 @@
   <img alt="license" src="https://img.shields.io/badge/license-Apache%202.0-green">
 </p>
 
-`ixunfei-docx-reader` 的核心是一个命令行工具：`ixfdoc`。
+`ixunfei-docx-reader` 的优先入口是 Codex / Claude Code skill；`ixfdoc` 是 skill 调用的本地执行引擎，也可直接用于调试和自动化。
 
-- 将私有 i讯飞/LarkShell `docx`、`wiki` 链接导出为 Markdown。
+- 在 Codex / Claude Code 里直接粘贴私有 i讯飞/LarkShell `docx`、`wiki` 链接并读取为 Markdown。
 - 将支持的嵌入 sheet 展开为 TSV sidecar 文件。
 - 复用本机 i讯飞/LarkShell 桌面端登录态进行认证。
-- 安装 Codex / Claude Code wrapper skill，由 wrapper 调用同一个 CLI。
+- 提供 Codex / Claude Code skill，底层统一调用 `ixfdoc`。
 - 文档内容、cookie 和生成产物默认都留在本机。
 
 项目刻意保持小而清晰。它不是浏览器扩展、常驻 daemon、同步服务，也不是通用飞书备份产品。
 
 ## 为什么做这个
 
-私有 i讯飞/LarkShell 文档通常不能被 coding agent 直接通过普通 HTTP fetch 读取。`ixfdoc` 的目标是补上这段本地工作流：复用你已经登录的桌面端会话，把你有权限访问的文档转换成 agent 更容易处理的本地 Markdown/TSV 文件。
+私有 i讯飞/LarkShell 文档通常不能被 coding agent 直接通过普通 HTTP fetch 读取。这个项目的目标是补上这段本地工作流：让 Codex / Claude Code 通过本机 skill 调用 `ixfdoc`，复用你已经登录的桌面端会话，把你有权限访问的文档转换成 agent 更容易处理的本地 Markdown/TSV 文件。
 
 和 LarkSnap 这类浏览器扩展相比，本项目的边界更窄：
 
 | 项目形态 | 更适合 |
 |---|---|
-| `ixfdoc` CLI | Codex / Claude Code 在本地开发时读取已授权的私有文档 |
+| Codex / Claude Code skill + `ixfdoc` | 在本地开发时让 agent 读取已授权的私有文档 |
 | 浏览器扩展 | 浏览器里一键导出、可视化 UI、PDF/HTML、附件下载等工作流 |
 
-设计原则也很简单：解析、cookie 导出、诊断和格式转换都放在 Python CLI 里；agent skill 只做薄 wrapper，不重复实现 reader。
+设计原则也很简单：Codex / Claude Code skill 是用户入口；解析、cookie 导出、诊断和格式转换都收敛到 `ixfdoc` 本地执行引擎里，避免每个 agent 集成都重复实现 reader。
 
 ## 安装
+
+### 推荐：让 agent 帮你安装
+
+如果你正在使用 Codex，可以直接对 Codex 说：
+
+> 请帮我从 https://github.com/serialq7ic4/ixunfei-docx-reader 安装 ixunfei-docx-reader。先安装 GitHub Release wheel（macOS 用 `[crypto]`，Windows 用 `[windows]`），再运行 `ixfdoc setup skills --runtimes codex --json` 安装 Codex skill，最后用 `ixfdoc --version` 验证。
+
+如果你正在使用 Claude Code，可以直接对 Claude Code 说：
+
+> 请帮我从 https://github.com/serialq7ic4/ixunfei-docx-reader 安装 ixunfei-docx-reader。先安装 GitHub Release wheel（macOS 用 `[crypto]`，Windows 用 `[windows]`），再运行 `ixfdoc setup skills --runtimes claude-code --json` 安装 Claude Code skill，最后用 `ixfdoc --version` 验证。
+
+下面是手动安装方式。
+
+### 手动安装
 
 从 GitHub Release 安装：
 
@@ -94,7 +108,7 @@ ixfdoc read \
 | `ixfdoc read <source>...` | 将私有链接或本地 Markdown 文件读取为 Markdown/TSV 产物 |
 | `ixfdoc cookies export` | 从本机 i讯飞/LarkShell 桌面端会话导出 cookie |
 | `ixfdoc doctor` | 检查运行环境和 cookie 元数据，不打印 cookie 值 |
-| `ixfdoc setup skills` | 安装 Codex / Claude Code wrapper skill |
+| `ixfdoc setup skills` | 安装 Codex / Claude Code skill |
 | `ixfdoc --version` | 输出当前 CLI 版本 |
 
 常用读取参数：
@@ -121,9 +135,9 @@ ixfdoc read "<private-link>" \
 
 `--cleanup` 只会删除本次命令生成的文件，不会递归删除输出目录里的其他内容。
 
-## Agent Wrappers
+## Codex / Claude Code 使用
 
-安装 Codex 和 Claude Code wrapper：
+安装 Codex 和 Claude Code skill：
 
 ```bash
 ixfdoc setup skills --runtimes auto --json
@@ -136,9 +150,11 @@ ixfdoc setup skills --runtimes codex --json
 ixfdoc setup skills --runtimes claude-code --json
 ```
 
-这些 wrapper 不实现自己的文档解析逻辑。它们调用 `ixfdoc read`，读取 CLI 的 manifest / JSON error contract，并按 CLI 返回的 hint 处理错误。
+安装后，在 Codex / Claude Code 里直接贴 i讯飞/LarkShell 私有文档链接，让 agent 使用 `ixunfei-docx-reader` skill 读取文档。
 
-打包的 wrapper 源文件在：
+这些 skill 不重复实现文档解析逻辑。它们调用 `ixfdoc read`，读取 CLI 的 manifest / JSON error contract，并按 CLI 返回的 hint 处理错误。
+
+打包的 skill 源文件在：
 
 - `skills/codex/ixunfei-docx-reader/SKILL.md`
 - `skills/claude-code/ixunfei-docx-reader/SKILL.md`
@@ -150,7 +166,7 @@ ixfdoc setup skills --runtimes claude-code --json
 - i讯飞/LarkShell `docx` 文档。
 - 可解析到受支持文档类型的 i讯飞/LarkShell `wiki` 链接。
 - 通过受支持文档 payload 暴露出来的 mindnote / 嵌入 sheet 标记。
-- 本地 Markdown 文件，主要用于 wrapper 和工作流测试。
+- 本地 Markdown 文件，主要用于 skill 和工作流测试。
 
 部分 Feishu/i讯飞 block 格式无法和 Markdown 一一对应。当前转换器优先保证 agent 分析可用，而不是完全还原原始文档视觉效果。
 
@@ -205,7 +221,7 @@ Release 说明见 [`docs/release.md`](docs/release.md)。JSON 错误契约见 [`
 - 从原始 skill 迁移的远程私有文档 reader。
 - Feishu/i讯飞 docx client-vars 到 Markdown 的转换。
 - 嵌入 sheet 展开为 TSV sidecar 文件。
-- Codex 和 Claude Code wrapper 安装。
+- Codex 和 Claude Code skill 安装。
 - GitHub Actions CI 和 tag Release workflow。
 
 已知限制：
