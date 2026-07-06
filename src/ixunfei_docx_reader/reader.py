@@ -92,6 +92,17 @@ def fetch_html(session: requests.Session, url: str, csrf_token: str) -> str:
     return response.text
 
 
+def merge_client_vars_page(target: dict[str, Any], page: dict[str, Any]) -> None:
+    for key, value in page.items():
+        if key == "block_map" and isinstance(value, dict):
+            block_map = target.setdefault("block_map", {})
+            if isinstance(block_map, dict):
+                block_map.update(value)
+                continue
+        if key not in {"has_more", "cursor"}:
+            target[key] = value
+
+
 def client_vars(
     session: requests.Session,
     space_api: str,
@@ -99,16 +110,28 @@ def client_vars(
     origin: str,
     csrf_token: str,
 ) -> dict[str, Any]:
-    response = session.get(
-        f"{space_api.rstrip('/')}/space/api/docx/pages/client_vars?id={page_id}&open_type=1",
-        headers=common_headers(origin, csrf_token, f"{origin}/docx/{page_id}"),
-        timeout=30,
-    )
-    response.raise_for_status()
-    payload = response.json()
-    if payload.get("code") != 0:
-        raise RuntimeError(f"client_vars failed: {payload}")
-    return payload["data"]
+    base_url = f"{space_api.rstrip('/')}/space/api/docx/pages/client_vars"
+    referer = f"{origin}/docx/{page_id}"
+    data: dict[str, Any] = {}
+    cursor = ""
+    while True:
+        query = f"id={page_id}&open_type=1"
+        if cursor:
+            query = f"{query}&mode=4&cursor={cursor}"
+        response = session.get(
+            f"{base_url}?{query}",
+            headers=common_headers(origin, csrf_token, referer),
+            timeout=30,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if payload.get("code") != 0:
+            raise RuntimeError(f"client_vars failed: {payload}")
+        page = payload["data"]
+        merge_client_vars_page(data, page)
+        cursor = str(page.get("cursor") or "")
+        if not page.get("has_more") or not cursor:
+            return data
 
 
 def bitable_client_vars(
