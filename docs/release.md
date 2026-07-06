@@ -19,7 +19,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The GitHub Actions release workflow builds `sdist` and `wheel` artifacts and uploads them as workflow artifacts.
+The GitHub Actions release workflow builds `sdist` and `wheel` artifacts, uploads them as workflow artifacts, and attaches them to the GitHub Release.
 
 ## Publishing
 
