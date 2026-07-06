@@ -23,3 +23,11 @@ def test_export_cookies_reports_decryption_not_implemented(tmp_path: Path) -> No
 
     with pytest.raises(RuntimeError, match="Windows cookie decryption is not implemented yet"):
         export_cookies(output=tmp_path / "cookies.json", cookies_db=db)
+
+
+def test_export_cookies_accepts_output_as_positional_argument(tmp_path: Path) -> None:
+    db = tmp_path / "Cookies"
+    db.write_bytes(b"sqlite")
+
+    with pytest.raises(RuntimeError, match="Windows cookie decryption is not implemented yet"):
+        export_cookies(tmp_path / "cookies.json", cookies_db=db)

@@ -25,7 +25,6 @@ def find_cookie_db(cookies_db: Path | None, app_data: Path | None) -> Path:
 
 
 def export_cookies(
-    *,
     output: Path,
     app_data: Path | None = None,
     cookies_db: Path | None = None,

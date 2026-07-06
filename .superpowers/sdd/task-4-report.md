@@ -61,3 +61,20 @@
 ## Concerns
 
 - None.
+
+## Review Fix: export_cookies Positional Output
+
+### Fix Summary
+
+- Updated `src/ixunfei_docx_reader/cookies/windows_larkshell.py` so `export_cookies` accepts `output` as the first positional parameter, matching the Task 4 brief contract.
+- Added focused regression coverage in `tests/test_windows_cookie_provider.py` for calling `export_cookies(tmp_path / "cookies.json", cookies_db=db)`.
+- Kept behavior task-scoped: the provider still verifies the cookie DB path and intentionally raises `RuntimeError("Windows cookie decryption is not implemented yet.")`; no DPAPI or SQLite export was implemented.
+
+### Verification Results
+
+- `python -m pytest tests/test_windows_cookie_provider.py::test_export_cookies_accepts_output_as_positional_argument -q`
+  - RED before fix: failed with `TypeError: export_cookies() takes 0 positional arguments but 1 positional argument (and 1 keyword-only argument) were given`.
+- `python -m pytest tests/test_windows_cookie_provider.py tests/test_cli_contract.py -q`
+  - Final result: `18 passed in 1.27s`.
+- `python -m ruff check .`
+  - Final result: `All checks passed!`.
