@@ -26,7 +26,7 @@ This project is intentionally small. It is not a browser extension, daemon, sync
 
 Private i讯飞/LarkShell documents are often inaccessible to coding agents through ordinary HTTP fetches. This project bridges that gap by letting Codex / Claude Code call `ixfdoc` through a local skill, reuse the desktop session you already have, and convert authorized documents into agent-friendly local files.
 
-Compared with browser-extension projects such as LarkSnap, this project focuses on a narrower workflow:
+Compared with general browser-extension export tools, this project focuses on a narrower workflow:
 
 | Project shape | Best for |
 |---|---|

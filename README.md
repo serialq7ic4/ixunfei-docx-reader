@@ -26,7 +26,7 @@
 
 私有 i讯飞/LarkShell 文档通常不能被 coding agent 直接通过普通 HTTP fetch 读取。这个项目的目标是补上这段本地工作流：让 Codex / Claude Code 通过本机 skill 调用 `ixfdoc`，复用你已经登录的桌面端会话，把你有权限访问的文档转换成 agent 更容易处理的本地 Markdown/TSV 文件。
 
-和 LarkSnap 这类浏览器扩展相比，本项目的边界更窄：
+和通用浏览器扩展类导出工具相比，本项目的边界更窄：
 
 | 项目形态 | 更适合 |
 |---|---|
