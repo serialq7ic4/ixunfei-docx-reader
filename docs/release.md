@@ -15,8 +15,8 @@ python -m build
 ## Tag
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 The GitHub Actions release workflow builds `sdist` and `wheel` artifacts, uploads them as workflow artifacts, and attaches them to the GitHub Release.
