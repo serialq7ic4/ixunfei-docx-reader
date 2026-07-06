@@ -38,6 +38,18 @@ python -m pip install -e ".[windows]"
 
 Release build notes live in [`docs/release.md`](docs/release.md).
 
+## Maintainer Smoke Test
+
+```bash
+scripts/smoke.sh
+```
+
+On Windows:
+
+```powershell
+scripts\\smoke.ps1
+```
+
 ## Current Status
 
 The initial package skeleton is in place with:
