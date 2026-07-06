@@ -1,13 +1,15 @@
 # ixunfei-docx-reader
 
-Read authorized i讯飞/LarkShell private documents into agent-friendly Markdown/TSV.
+Read authorized i讯飞/LarkShell private documents into local Markdown/TSV files for agent analysis.
 
-This project is intentionally small:
+`ixunfei-docx-reader` is a small CLI-first project:
 
-- `ixfdoc` is the CLI.
-- Codex and Claude Code skills are thin wrappers around the CLI.
-- The core reader is read-only and does not upload document content.
-- Supported desktop platforms are macOS today; Windows support is planned.
+- `ixfdoc` is the source of truth.
+- Codex and Claude Code skills are thin wrappers around `ixfdoc`.
+- Document content stays local unless you choose to send generated files elsewhere.
+- Cookie export uses your local desktop login session and never prints cookie values.
+
+Supported desktop-session platforms are macOS and Windows. Linux is not supported because i讯飞 does not ship a Linux desktop client.
 
 ## Commands
 
@@ -19,14 +21,20 @@ ixfdoc doctor --json --cookies /tmp/ixunfei_profile_explorer_cookies.json
 
 ## Install
 
-For local development, install the CLI in editable mode:
+For development:
 
 ```bash
 python -m pip install -e ".[crypto,dev]"
 ixfdoc --version
 ```
 
-`crypto` is needed for macOS cookie decryption. `dev` is only needed for tests.
+For Windows cookie export:
+
+```bash
+python -m pip install -e ".[windows]"
+```
+
+`crypto` is needed for macOS cookie decryption. `dev` is for tests and local release builds.
 
 Release build notes live in [`docs/release.md`](docs/release.md).
 
@@ -46,7 +54,7 @@ Remote reader parity with the original skill is being migrated incrementally.
 
 ## Authentication
 
-On macOS, export the local i讯飞/LarkShell desktop session cookies before reading private links:
+On macOS or Windows, export the local i讯飞/LarkShell desktop session cookies before reading private links:
 
 ```bash
 ixfdoc cookies export --provider auto --output /tmp/ixunfei_profile_explorer_cookies.json
@@ -58,9 +66,21 @@ Treat exported cookie files as secrets. Do not commit or print them.
 
 ## Agent Wrappers
 
-The Codex and Claude Code wrappers live under:
+Install local wrappers for Codex and Claude Code:
+
+```bash
+ixfdoc setup skills --runtimes auto --json
+```
+
+The wrappers do not parse documents. They call `ixfdoc read`, parse the CLI JSON error contract, and follow the returned hint.
+
+The wrapper sources live under:
 
 - `skills/codex/ixunfei-docx-reader/SKILL.md`
 - `skills/claude-code/ixunfei-docx-reader/SKILL.md`
 
-They should call `ixfdoc` directly and stay thin. Keep parsing, cookie export, diagnostics, and conversion logic in the shared Python package.
+Keep parsing, cookie export, diagnostics, and conversion logic in the shared Python package.
+
+## Privacy
+
+Treat exported cookies and generated Markdown/TSV as sensitive. Do not commit them. Do not paste cookie values into issues, logs, or prompts.
