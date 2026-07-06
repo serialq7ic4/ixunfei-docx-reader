@@ -377,5 +377,7 @@ def test_cookies_export_auto_routes_to_windows_provider(
     exit_code = cli.main(["cookies", "export", "--provider", "auto", "--output", str(output)])
 
     assert exit_code == 0
-    assert calls == [{"output": output, "cookies_db": None}]
+    assert calls == [
+        {"output": output, "cookies_db": None, "host_like": "%xfchat.iflytek.com%"}
+    ]
     assert json.loads(capsys.readouterr().out)["provider"] == "windows-larkshell"

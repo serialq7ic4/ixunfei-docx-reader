@@ -295,8 +295,9 @@ def run_cookies(args: argparse.Namespace) -> int:
                 payload = export_windows_larkshell_cookies(
                     output=Path(args.output).expanduser(),
                     cookies_db=Path(args.cookies_db).expanduser() if args.cookies_db else None,
+                    host_like=args.host_like,
                 )
-            except Exception as exc:
+            except (FileNotFoundError, RuntimeError, sqlite3.Error, OSError) as exc:
                 fail(
                     error_type="cookie",
                     subtype="cookie_export_failed",

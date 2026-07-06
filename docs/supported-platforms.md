@@ -5,4 +5,18 @@
 | Platform | Status | Notes |
 |---|---|---|
 | macOS | Tier 1 | `ixfdoc cookies export --provider auto` reads LarkShell Chromium profile data and decrypts cookies with Keychain. |
-| Windows | Planned Tier 1 | DPAPI-based cookie provider is planned. |
+| Windows | Tier 1 | `ixfdoc cookies export --provider windows-larkshell` reads LarkShell Chromium profile data and decrypts cookies locally with DPAPI through `pywin32`. |
+
+## Windows
+
+Windows support uses the local LarkShell Chromium cookie database and DPAPI through `pywin32`.
+
+Install with:
+
+```bash
+python -m pip install -e ".[windows]"
+ixfdoc cookies export --provider windows-larkshell --output %TEMP%\\ixunfei_profile_explorer_cookies.json
+ixfdoc doctor --json --cookies %TEMP%\\ixunfei_profile_explorer_cookies.json
+```
+
+Do not use this on Linux; i讯飞 does not ship a Linux desktop client.
