@@ -218,7 +218,7 @@ python -m pip install -e ".[windows,dev]"
 scripts\smoke.ps1
 ```
 
-Release 说明见 [`docs/release.md`](docs/release.md)。JSON 错误契约见 [`docs/error-contract.md`](docs/error-contract.md)。
+版本更新记录见 [`CHANGELOG.md`](CHANGELOG.md)。Release 流程见 [`docs/release.md`](docs/release.md)。JSON 错误契约见 [`docs/error-contract.md`](docs/error-contract.md)。
 
 ## 项目状态
 

@@ -218,7 +218,7 @@ python -m pip install -e ".[windows,dev]"
 scripts\smoke.ps1
 ```
 
-Release notes live in [`docs/release.md`](docs/release.md). The JSON error contract is documented in [`docs/error-contract.md`](docs/error-contract.md).
+Version history lives in [`CHANGELOG.md`](CHANGELOG.md). Release process notes live in [`docs/release.md`](docs/release.md). The JSON error contract is documented in [`docs/error-contract.md`](docs/error-contract.md).
 
 ## Project Status
 
