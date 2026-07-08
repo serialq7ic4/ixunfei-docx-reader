@@ -6,8 +6,13 @@ This project keeps changelog entries human-written and release-focused. Update t
 
 ## Unreleased
 
+No unreleased changes yet.
+
+## v0.1.2 - 2026-07-08
+
 ### Added
 
+- Added `ixfdoc read` support for i讯飞/LarkShell OKR pages, rendered as Objective / Key Result Markdown.
 - Added bilingual README documentation with Chinese as the default and English in `README.en.md`.
 - Added skill-first installation guidance for Codex and Claude Code.
 - Added changelog requirement to the release workflow.
@@ -17,6 +22,10 @@ This project keeps changelog entries human-written and release-focused. Update t
 - Repositioned the project as a Codex / Claude Code skill installed by default, with `ixfdoc` as the local execution engine.
 - Reworked README structure to emphasize agent usage, local privacy, supported platforms, and underlying commands for debugging.
 - Replaced named third-party comparison wording with generic browser-extension export tool wording.
+
+### Changed
+
+- Bumped package version to `0.1.2` for the OKR reader release.
 
 ## v0.1.1 - 2026-07-06
 

@@ -48,7 +48,7 @@
 手动命令：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
 ixfdoc setup skills --runtimes codex --json
 ixfdoc --version
 ```
@@ -62,7 +62,7 @@ ixfdoc --version
 手动命令：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
 ixfdoc setup skills --runtimes claude-code --json
 ixfdoc --version
 ```
@@ -70,7 +70,7 @@ ixfdoc --version
 ### 同时安装到两个 agent
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
 ixfdoc setup skills --runtimes auto --json
 ixfdoc --version
 ```
@@ -78,7 +78,7 @@ ixfdoc --version
 Windows cookie 导出目前仍是实验支持。Windows 安装时把 `[crypto]` 换成 `[windows]`：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
 ```
 
 `crypto` 用于 macOS cookie 解密。Windows 已有 CI 和单元测试覆盖，但还需要在真实 Windows i讯飞/LarkShell 桌面端登录环境验证后，才会提升为 Tier 1 支持。
@@ -172,6 +172,7 @@ ixfdoc read "<private-link>" \
 
 - i讯飞/LarkShell `docx` 文档。
 - 可解析到受支持文档类型的 i讯飞/LarkShell `wiki` 链接。
+- i讯飞/LarkShell OKR 页面，输出 Objective / Key Result Markdown。
 - 通过受支持文档 payload 暴露出来的 mindnote / 嵌入 sheet 标记。
 - 本地 Markdown 文件，主要用于 skill 和工作流测试。
 

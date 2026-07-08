@@ -48,7 +48,7 @@ If you are using Codex, ask Codex:
 Manual commands:
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
 ixfdoc setup skills --runtimes codex --json
 ixfdoc --version
 ```
@@ -62,7 +62,7 @@ If you are using Claude Code, ask Claude Code:
 Manual commands:
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
 ixfdoc setup skills --runtimes claude-code --json
 ixfdoc --version
 ```
@@ -70,7 +70,7 @@ ixfdoc --version
 ### Install Into Both Agents
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
 ixfdoc setup skills --runtimes auto --json
 ixfdoc --version
 ```
@@ -78,7 +78,7 @@ ixfdoc --version
 Windows cookie export is still experimental. On Windows, replace `[crypto]` with `[windows]`:
 
 ```bash
-python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.1/ixunfei_docx_reader-0.1.1-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
 ```
 
 `crypto` is needed for macOS cookie decryption. Windows support is covered by CI and unit tests, but still needs validation on a real Windows i讯飞/LarkShell desktop client before it is treated as Tier 1.
@@ -172,6 +172,7 @@ Current reader coverage includes:
 
 - i讯飞/LarkShell `docx` documents.
 - i讯飞/LarkShell `wiki` links that resolve to supported document types.
+- i讯飞/LarkShell OKR pages rendered as Objective / Key Result Markdown.
 - Mindnote / embedded sheet markers when exposed through the supported document payload.
 - Local Markdown files for skill and workflow testing.
 

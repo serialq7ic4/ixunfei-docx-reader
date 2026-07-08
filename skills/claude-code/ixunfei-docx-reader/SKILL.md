@@ -1,6 +1,6 @@
 ---
 name: ixunfei-docx-reader
-description: Read authorized i讯飞/LarkShell private document links or local Markdown files into local Markdown/TSV artifacts for Claude Code analysis. Use when users ask to pull, save, summarize, analyze, or mine requirements from i讯飞 wiki/docx/mindnote/bitable documents.
+description: Read authorized i讯飞/LarkShell private document, OKR, or local Markdown sources into local Markdown/TSV artifacts for Claude Code analysis. Use when users ask to pull, save, summarize, analyze, or mine requirements from i讯飞 wiki/docx/OKR/mindnote/bitable sources.
 ---
 
 # ixunfei-docx-reader
@@ -13,6 +13,8 @@ This skill is a thin wrapper around the shared `ixfdoc` CLI.
 out="$(mktemp -d /tmp/ixfdoc.XXXXXX)"
 ixfdoc read "<source>" --out-dir "$out" --expand-sheets --print-manifest --cleanup
 ```
+
+OKR pages are supported by the same command and are rendered as Objective / Key Result Markdown.
 
 Use the manifest output to locate generated files while the command is running. With `--cleanup`, generated Markdown/TSV files are removed before the command exits.
 

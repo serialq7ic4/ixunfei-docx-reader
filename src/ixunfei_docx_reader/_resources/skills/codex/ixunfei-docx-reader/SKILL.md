@@ -1,6 +1,6 @@
 ---
 name: ixunfei-docx-reader
-description: Read authorized i讯飞/LarkShell wiki, docx, mindnote, bitable, embedded sheet, or local Markdown sources into local Markdown/TSV artifacts for Codex analysis. Use when the user provides private i讯飞 document links or asks to summarize, analyze, or mine requirements from those documents.
+description: Read authorized i讯飞/LarkShell wiki, docx, OKR, mindnote, bitable, embedded sheet, or local Markdown sources into local Markdown/TSV artifacts for Codex analysis. Use when the user provides private i讯飞 document or OKR links, or asks to summarize, analyze, or mine requirements from those sources.
 ---
 
 # ixunfei-docx-reader
@@ -20,6 +20,8 @@ Multiple sources are allowed:
 out="$(mktemp -d /tmp/ixfdoc.XXXXXX)"
 ixfdoc read "<url-1>" "<url-2>" "/path/to/local.md" --out-dir "$out" --expand-sheets --print-manifest --cleanup
 ```
+
+OKR pages are supported by the same command and are rendered as Objective / Key Result Markdown.
 
 ## Error Handling
 
