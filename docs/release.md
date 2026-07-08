@@ -25,6 +25,13 @@ python -m build
 scripts/smoke.sh
 ```
 
+For releases that change packaged skills, also verify the explicit update path:
+
+```bash
+ixfdoc update skills --runtimes none --json
+ixfdoc update check --json
+```
+
 ## Tag
 
 ```bash

@@ -48,7 +48,7 @@
 手动命令：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.3/ixunfei_docx_reader-0.1.3-py3-none-any.whl"
 ixfdoc setup skills --runtimes codex --json
 ixfdoc --version
 ```
@@ -62,7 +62,7 @@ ixfdoc --version
 手动命令：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.3/ixunfei_docx_reader-0.1.3-py3-none-any.whl"
 ixfdoc setup skills --runtimes claude-code --json
 ixfdoc --version
 ```
@@ -70,7 +70,7 @@ ixfdoc --version
 ### 同时安装到两个 agent
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.3/ixunfei_docx_reader-0.1.3-py3-none-any.whl"
 ixfdoc setup skills --runtimes auto --json
 ixfdoc --version
 ```
@@ -78,7 +78,7 @@ ixfdoc --version
 Windows cookie 导出目前仍是实验支持。Windows 安装时把 `[crypto]` 换成 `[windows]`：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.3/ixunfei_docx_reader-0.1.3-py3-none-any.whl"
 ```
 
 `crypto` 用于 macOS cookie 解密。Windows 已有 CI 和单元测试覆盖，但还需要在真实 Windows i讯飞/LarkShell 桌面端登录环境验证后，才会提升为 Tier 1 支持。
@@ -102,10 +102,33 @@ python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq
 | 命令 | 用途 |
 |---|---|
 | `ixfdoc setup skills` | 安装 Codex / Claude Code skill |
+| `ixfdoc update check` | 检查 GitHub Release 是否有新版本，并输出升级命令 |
+| `ixfdoc update skills` | 用当前已安装包刷新本地 Codex / Claude Code skill |
 | `ixfdoc read <source>...` | 将私有链接或本地 Markdown 文件读取为 Markdown/TSV 产物 |
 | `ixfdoc cookies export` | 从本机 i讯飞/LarkShell 桌面端会话导出 cookie |
 | `ixfdoc doctor` | 检查运行环境和 cookie 元数据，不打印 cookie 值 |
 | `ixfdoc --version` | 输出当前本地执行引擎版本 |
+
+## 更新
+
+`ixfdoc` 不做静默自动更新。推荐先检查最新 GitHub Release，再显式执行输出的升级命令：
+
+```bash
+ixfdoc update check
+```
+
+如果已经升级了 Python 包，只需要刷新本地 agent skill：
+
+```bash
+ixfdoc update skills --runtimes auto --json
+```
+
+只刷新某个 agent：
+
+```bash
+ixfdoc update skills --runtimes codex --json
+ixfdoc update skills --runtimes claude-code --json
+```
 
 ## 手动读取流程
 

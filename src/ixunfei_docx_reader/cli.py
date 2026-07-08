@@ -35,7 +35,10 @@ EXIT_CODES = {
     "cookie_file_invalid": 7,
     "cookie_csrf_missing": 8,
     "remote_read_failed": 9,
+    "update_check_failed": 10,
 }
+
+DEFAULT_RELEASE_REPO = "serialq7ic4/ixunfei-docx-reader"
 
 
 def platform_name() -> str:
@@ -126,6 +129,19 @@ def build_parser() -> argparse.ArgumentParser:
     setup_skills.add_argument("--runtimes", default="auto")
     setup_skills.add_argument("--force", action="store_true")
     setup_skills.add_argument("--json", action="store_true", dest="as_json")
+
+    update = subparsers.add_parser("update", help="Check releases and refresh local skills.")
+    update_subparsers = update.add_subparsers(dest="update_command")
+    update_subparsers.required = True
+    update_check = update_subparsers.add_parser("check", help="Check the latest GitHub Release.")
+    update_check.add_argument("--repo", default=DEFAULT_RELEASE_REPO)
+    update_check.add_argument("--json", action="store_true", dest="as_json")
+    update_skills = update_subparsers.add_parser(
+        "skills",
+        help="Refresh installed Codex/Claude Code skill wrappers from this package.",
+    )
+    update_skills.add_argument("--runtimes", default="auto")
+    update_skills.add_argument("--json", action="store_true", dest="as_json")
 
     return parser
 
@@ -354,11 +370,9 @@ def run_cookies(args: argparse.Namespace) -> int:
 
 
 def run_setup_skills(args: argparse.Namespace) -> int:
-    from ixunfei_docx_reader.setup import install_skill_wrappers, packaged_project_root
-
     try:
-        payload = install_skill_wrappers(
-            packaged_project_root(),
+        payload = install_packaged_skill_wrappers(
+            packaged_resource_root(),
             Path.home(),
             args.runtimes.split(","),
             args.force,
@@ -376,7 +390,143 @@ def run_setup_skills(args: argparse.Namespace) -> int:
     else:
         print(f"installed {len(payload['installed'])} wrapper(s)")
         if payload["skipped"]:
-            print(f"skipped {len(payload['skipped'])} existing wrapper(s); pass --force to overwrite")
+            print(
+                f"skipped {len(payload['skipped'])} existing wrapper(s); "
+                "pass --force to overwrite"
+            )
+    return 0
+
+
+def packaged_resource_root() -> Path:
+    from ixunfei_docx_reader.setup import packaged_project_root
+
+    return packaged_project_root()
+
+
+def install_packaged_skill_wrappers(
+    project_root: Path,
+    home: Path,
+    runtimes: list[str],
+    force: bool,
+    env: dict[str, str],
+) -> dict[str, object]:
+    from ixunfei_docx_reader.setup import install_skill_wrappers
+
+    return install_skill_wrappers(project_root, home, runtimes, force, env)
+
+
+def get_latest_github_release(repo: str) -> dict[str, object]:
+    response = requests.get(
+        f"https://api.github.com/repos/{repo}/releases/latest",
+        headers={"Accept": "application/vnd.github+json"},
+        timeout=15,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict):
+        raise RuntimeError("GitHub release response was not a JSON object.")
+    return payload
+
+
+def normalize_release_version(tag: str) -> str:
+    return tag.strip().removeprefix("v").removeprefix("V")
+
+
+def parse_version_parts(version: str) -> tuple[int, ...]:
+    parts: list[int] = []
+    for raw_part in normalize_release_version(version).split("."):
+        match = re.match(r"^(\d+)", raw_part)
+        if match is None:
+            break
+        parts.append(int(match.group(1)))
+    return tuple(parts)
+
+
+def is_newer_version(candidate: str, current: str) -> bool:
+    candidate_parts = parse_version_parts(candidate)
+    current_parts = parse_version_parts(current)
+    width = max(len(candidate_parts), len(current_parts))
+    candidate_parts = candidate_parts + (0,) * (width - len(candidate_parts))
+    current_parts = current_parts + (0,) * (width - len(current_parts))
+    return candidate_parts > current_parts
+
+
+def release_install_command(repo: str, version: str) -> str:
+    extra = "windows" if platform_name() == "windows" else "crypto"
+    return (
+        "python -m pip install --upgrade "
+        f"\"ixunfei-docx-reader[{extra}] @ https://github.com/{repo}/releases/download/"
+        f"v{version}/ixunfei_docx_reader-{version}-py3-none-any.whl\" && "
+        "ixfdoc update skills --runtimes auto --json"
+    )
+
+
+def build_update_check_payload(repo: str, release: dict[str, object]) -> dict[str, object]:
+    latest_tag = str(release.get("tag_name", "")).strip()
+    if not latest_tag:
+        raise RuntimeError("GitHub release response did not include tag_name.")
+    latest_version = normalize_release_version(latest_tag)
+    release_url = str(release.get("html_url", ""))
+    update_available = is_newer_version(latest_version, __version__)
+    return {
+        "ok": True,
+        "currentVersion": __version__,
+        "latestVersion": latest_version,
+        "latestTag": latest_tag,
+        "updateAvailable": update_available,
+        "releaseUrl": release_url,
+        "installCommand": release_install_command(repo, latest_version) if update_available else "",
+    }
+
+
+def run_update_check(args: argparse.Namespace) -> int:
+    try:
+        payload = build_update_check_payload(args.repo, get_latest_github_release(args.repo))
+    except (requests.RequestException, RuntimeError, ValueError) as exc:
+        fail(
+            error_type="remote",
+            subtype="update_check_failed",
+            message=str(exc),
+            hint="Check network access and the GitHub repo name, then retry `ixfdoc update check`.",
+            retryable=True,
+        )
+    if args.as_json:
+        print(json.dumps(payload, ensure_ascii=False))
+    else:
+        print(f"current {payload['currentVersion']}")
+        print(f"latest {payload['latestVersion']}")
+        print(f"updateAvailable {str(payload['updateAvailable']).lower()}")
+        if payload["releaseUrl"]:
+            print(f"release {payload['releaseUrl']}")
+        if payload["updateAvailable"]:
+            print("install:")
+            print(payload["installCommand"])
+    return 0
+
+
+def run_update_skills(args: argparse.Namespace) -> int:
+    try:
+        payload = install_packaged_skill_wrappers(
+            packaged_resource_root(),
+            Path.home(),
+            args.runtimes.split(","),
+            True,
+            dict(os.environ),
+        )
+    except ValueError as exc:
+        fail(
+            error_type="usage",
+            subtype="bad_args",
+            message=str(exc),
+            hint="Use --runtimes auto, all, none, codex, claude-code, or a comma-separated supported list.",
+        )
+    payload = {**payload, "updated": True}
+    if args.as_json:
+        print(json.dumps(payload, ensure_ascii=False))
+    else:
+        print(f"updated {len(payload['installed'])} wrapper(s)")
+        if payload["skipped"]:
+            print(f"skipped {len(payload['skipped'])} wrapper(s)")
     return 0
 
 
@@ -394,6 +544,10 @@ def main(argv: list[str] | None = None) -> int:
         return run_cookies(args)
     if args.command == "setup" and args.setup_command == "skills":
         return run_setup_skills(args)
+    if args.command == "update" and args.update_command == "check":
+        return run_update_check(args)
+    if args.command == "update" and args.update_command == "skills":
+        return run_update_skills(args)
     parser.print_help(sys.stderr)
     return 2
 

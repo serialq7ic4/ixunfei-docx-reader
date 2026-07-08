@@ -8,6 +8,17 @@ This project keeps changelog entries human-written and release-focused. Update t
 
 No unreleased changes yet.
 
+## v0.1.3 - 2026-07-08
+
+### Added
+
+- Added `ixfdoc update check` to compare the local engine version with the latest GitHub Release and print a copyable upgrade command.
+- Added `ixfdoc update skills` to refresh installed Codex / Claude Code skill wrappers from the currently installed package.
+
+### Changed
+
+- Bumped package version to `0.1.3` for the update workflow release.
+
 ## v0.1.2 - 2026-07-08
 
 ### Added

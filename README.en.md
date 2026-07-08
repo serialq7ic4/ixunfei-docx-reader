@@ -48,7 +48,7 @@ If you are using Codex, ask Codex:
 Manual commands:
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.3/ixunfei_docx_reader-0.1.3-py3-none-any.whl"
 ixfdoc setup skills --runtimes codex --json
 ixfdoc --version
 ```
@@ -62,7 +62,7 @@ If you are using Claude Code, ask Claude Code:
 Manual commands:
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.3/ixunfei_docx_reader-0.1.3-py3-none-any.whl"
 ixfdoc setup skills --runtimes claude-code --json
 ixfdoc --version
 ```
@@ -70,7 +70,7 @@ ixfdoc --version
 ### Install Into Both Agents
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.3/ixunfei_docx_reader-0.1.3-py3-none-any.whl"
 ixfdoc setup skills --runtimes auto --json
 ixfdoc --version
 ```
@@ -78,7 +78,7 @@ ixfdoc --version
 Windows cookie export is still experimental. On Windows, replace `[crypto]` with `[windows]`:
 
 ```bash
-python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.2/ixunfei_docx_reader-0.1.2-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.3/ixunfei_docx_reader-0.1.3-py3-none-any.whl"
 ```
 
 `crypto` is needed for macOS cookie decryption. Windows support is covered by CI and unit tests, but still needs validation on a real Windows i讯飞/LarkShell desktop client before it is treated as Tier 1.
@@ -102,10 +102,33 @@ You usually do not need to call these manually. They are mainly for debugging, a
 | Command | Purpose |
 |---|---|
 | `ixfdoc setup skills` | Install Codex / Claude Code skills |
+| `ixfdoc update check` | Check the latest GitHub Release and print an upgrade command |
+| `ixfdoc update skills` | Refresh local Codex / Claude Code skills from the installed package |
 | `ixfdoc read <source>...` | Read private links or local Markdown files into Markdown/TSV outputs |
 | `ixfdoc cookies export` | Export cookies from the local i讯飞/LarkShell desktop session |
 | `ixfdoc doctor` | Inspect runtime and cookie metadata without printing cookie values |
 | `ixfdoc --version` | Print the local execution engine version |
+
+## Update
+
+`ixfdoc` does not silently auto-update. Check the latest GitHub Release first, then run the printed upgrade command explicitly:
+
+```bash
+ixfdoc update check
+```
+
+If the Python package is already upgraded, refresh only the local agent skill:
+
+```bash
+ixfdoc update skills --runtimes auto --json
+```
+
+Refresh one agent runtime only:
+
+```bash
+ixfdoc update skills --runtimes codex --json
+ixfdoc update skills --runtimes claude-code --json
+```
 
 ## Manual Read Flow
 
