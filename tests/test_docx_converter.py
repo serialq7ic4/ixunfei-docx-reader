@@ -115,6 +115,37 @@ def test_convert_docx_client_vars_renders_todo_items() -> None:
     assert result.warnings == []
 
 
+def test_convert_docx_client_vars_renders_rich_text_links() -> None:
+    client_vars = {
+        "block_map": {
+            "page_1": {"data": {"type": "page", "children": ["text_1"]}},
+            "text_1": {
+                "data": {
+                    "type": "text",
+                    "parent_id": "page_1",
+                    "text": {
+                        "apool": {
+                            "numToAttrib": {
+                                "0": [["url", "https://example.com/spec"]],
+                            }
+                        },
+                        "initialAttributedTexts": {
+                            "attribs": {"0": "*0+4", "1": "+6"},
+                            "text": {"0": "Spec", "1": " ready"},
+                        },
+                    },
+                }
+            },
+        }
+    }
+
+    result = convert_docx_client_vars(client_vars, "page_1")
+
+    assert result.markdown == "[Spec](https://example.com/spec) ready\n"
+    assert result.counts == Counter({"page": 1, "text": 1})
+    assert result.warnings == []
+
+
 def test_convert_docx_client_vars_marks_unknown_blocks_without_losing_children() -> None:
     client_vars = {
         "block_map": {

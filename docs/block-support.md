@@ -26,7 +26,7 @@
 |---|---|
 | `page` | Uses the page text as the top-level title when present |
 | `heading1` through `heading6` | Renders Markdown headings |
-| `text` | Renders paragraph text |
+| `text` | Renders paragraph text, preserving inline URL links when metadata is available |
 | `bullet` | Renders unordered list items, including nested bullets |
 | `ordered` | Renders numbered list items among siblings |
 | `todo` | Renders Markdown task-list items |

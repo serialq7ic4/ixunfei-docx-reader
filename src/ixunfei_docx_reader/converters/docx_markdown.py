@@ -151,8 +151,67 @@ def extract_text(data: dict[str, Any]) -> str:
         if isinstance(initial, dict):
             pieces = initial.get("text", {})
             if isinstance(pieces, dict):
-                return "".join(str(pieces[key]) for key in sorted(pieces, key=piece_sort_key)).strip()
+                return render_attributed_text(pieces, initial.get("attribs", {}), text_obj.get("apool", {})).strip()
     return ""
+
+
+def render_attributed_text(
+    pieces: dict[str, Any],
+    attribs: Any,
+    apool: Any,
+) -> str:
+    return "".join(
+        render_text_piece(str(pieces[key]), piece_url(attribs, apool, key))
+        for key in sorted(pieces, key=piece_sort_key)
+    )
+
+
+def render_text_piece(text: str, url: str) -> str:
+    if not text or not url:
+        return text
+    return f"[{escape_markdown_link_text(text)}]({url})"
+
+
+def piece_url(attribs: Any, apool: Any, piece_key: str) -> str:
+    if not isinstance(attribs, dict):
+        return ""
+    attr_text = str(attribs.get(piece_key, ""))
+    attr_ids = re.findall(r"\*(\d+)", attr_text)
+    if not attr_ids:
+        return ""
+    return url_for_attrib_ids(apool, attr_ids)
+
+
+def url_for_attrib_ids(apool: Any, attr_ids: list[str]) -> str:
+    if not isinstance(apool, dict):
+        return ""
+    num_to_attrib = apool.get("numToAttrib", {})
+    if not isinstance(num_to_attrib, dict):
+        return ""
+    for attr_id in attr_ids:
+        url = url_from_attrib(num_to_attrib.get(str(attr_id)))
+        if url:
+            return url
+    return ""
+
+
+def url_from_attrib(value: Any) -> str:
+    if isinstance(value, list):
+        if len(value) >= 2 and value[0] == "url":
+            return str(value[1])
+        for item in value:
+            url = url_from_attrib(item)
+            if url:
+                return url
+    if isinstance(value, dict):
+        for key in ("url", "href", "link"):
+            if value.get(key):
+                return str(value[key])
+    return ""
+
+
+def escape_markdown_link_text(text: str) -> str:
+    return text.replace("[", "\\[").replace("]", "\\]")
 
 
 def piece_sort_key(value: str) -> tuple[int, int | str]:
