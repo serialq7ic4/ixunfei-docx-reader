@@ -48,7 +48,7 @@
 手动命令：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.3/ixunfei_docx_reader-0.1.3-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.4/ixunfei_docx_reader-0.1.4-py3-none-any.whl"
 ixfdoc setup skills --runtimes codex --json
 ixfdoc --version
 ```
@@ -62,7 +62,7 @@ ixfdoc --version
 手动命令：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.3/ixunfei_docx_reader-0.1.3-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.4/ixunfei_docx_reader-0.1.4-py3-none-any.whl"
 ixfdoc setup skills --runtimes claude-code --json
 ixfdoc --version
 ```
@@ -70,7 +70,7 @@ ixfdoc --version
 ### 同时安装到两个 agent
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.3/ixunfei_docx_reader-0.1.3-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.4/ixunfei_docx_reader-0.1.4-py3-none-any.whl"
 ixfdoc setup skills --runtimes auto --json
 ixfdoc --version
 ```
@@ -78,7 +78,7 @@ ixfdoc --version
 Windows cookie 导出目前仍是实验支持。Windows 安装时把 `[crypto]` 换成 `[windows]`：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.3/ixunfei_docx_reader-0.1.3-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.4/ixunfei_docx_reader-0.1.4-py3-none-any.whl"
 ```
 
 `crypto` 用于 macOS cookie 解密。Windows 已有 CI 和单元测试覆盖，但还需要在真实 Windows i讯飞/LarkShell 桌面端登录环境验证后，才会提升为 Tier 1 支持。

@@ -6,6 +6,10 @@ This project keeps changelog entries human-written and release-focused. Update t
 
 ## Unreleased
 
+No unreleased changes yet.
+
+## v0.1.4 - 2026-07-09
+
 ### Added
 
 - Added `ixfdoc inspect <source>` to print safe source-routing diagnostics without reading document content or exposing full remote tokens.
