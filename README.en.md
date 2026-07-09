@@ -252,7 +252,7 @@ scripts\smoke.ps1
 
 Version history lives in [`CHANGELOG.md`](CHANGELOG.md). Release process notes live in [`docs/release.md`](docs/release.md). The JSON error contract is documented in [`docs/error-contract.md`](docs/error-contract.md).
 
-Contribution guidelines live in [`CONTRIBUTING.md`](CONTRIBUTING.md). Before opening an issue or PR, review the privacy and security requirements and avoid pasting cookies, full private links, raw internal API responses, or private document content.
+Contribution guidelines live in [`CONTRIBUTING.en.md`](CONTRIBUTING.en.md). Before opening an issue or PR, review the privacy and security requirements and avoid pasting cookies, full private links, raw internal API responses, or private document content.
 
 ## Project Status
 

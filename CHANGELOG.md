@@ -8,7 +8,7 @@ This project keeps changelog entries human-written and release-focused. Update t
 
 ### Added
 
-- Added contribution guidelines plus GitHub issue and pull request templates with privacy-safe reporting requirements.
+- Added bilingual contribution guidelines plus GitHub issue and pull request templates with privacy-safe reporting requirements.
 
 ## v0.1.4 - 2026-07-09
 
