@@ -205,6 +205,32 @@ def test_read_local_markdown_writes_output_and_manifest(tmp_path: Path) -> None:
     assert (out_dir / "manifest.json").exists()
 
 
+def test_read_multiple_local_markdown_outputs_use_source_stems(tmp_path: Path) -> None:
+    source_a = tmp_path / "Project Plan.md"
+    source_b = tmp_path / "project-plan.md"
+    source_a.write_text("# A\n", encoding="utf-8")
+    source_b.write_text("# B\n", encoding="utf-8")
+    out_dir = tmp_path / "out"
+
+    result = run_module(
+        "read",
+        str(source_a),
+        str(source_b),
+        "--out-dir",
+        str(out_dir),
+        "--print-manifest",
+    )
+
+    assert result.returncode == 0
+    manifest = json.loads(result.stdout)
+    item_a = manifest["local_markdown_1"]
+    item_b = manifest["local_markdown_2"]
+    assert item_a["file"] == str(out_dir / "project-plan.md")
+    assert item_b["file"] == str(out_dir / "project-plan-2.md")
+    assert Path(item_a["file"]).read_text(encoding="utf-8") == "# A\n"
+    assert Path(item_b["file"]).read_text(encoding="utf-8") == "# B\n"
+
+
 def test_read_local_markdown_cleanup_removes_output_dir_after_manifest_print(
     tmp_path: Path,
 ) -> None:
@@ -225,7 +251,7 @@ def test_read_local_markdown_cleanup_removes_output_dir_after_manifest_print(
     manifest = json.loads(result.stdout)
     item = manifest["local_markdown_1"]
     assert item["kind"] == "local_markdown"
-    assert item["file"] == str(out_dir / "local-markdown-1.md")
+    assert item["file"] == str(out_dir / "source.md")
     assert not out_dir.exists()
 
 

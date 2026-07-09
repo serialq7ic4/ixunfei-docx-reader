@@ -244,9 +244,10 @@ def read_local_source(source: str) -> dict[str, object]:
 def write_outputs(results: list[dict[str, object]], out_dir: Path) -> dict[str, dict[str, object]]:
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest: dict[str, dict[str, object]] = {}
+    used_stems: set[str] = set()
     for index, result in enumerate(results, start=1):
         stem = f"{result['kind']}_{index}"
-        path = out_dir / f"{slugify(stem)}.md"
+        path = out_dir / f"{output_file_stem(result, stem, used_stems)}.md"
         path.write_text(str(result["content"]), encoding="utf-8")
         result["file"] = str(path)
         manifest[stem] = {
@@ -277,6 +278,21 @@ def cleanup_outputs(manifest: dict[str, dict[str, object]], out_dir: Path) -> No
 def slugify(value: str) -> str:
     text = re.sub(r"[^a-zA-Z0-9]+", "-", value.strip().lower()).strip("-")
     return text or "doc"
+
+
+def output_file_stem(result: dict[str, object], fallback: str, used_stems: set[str]) -> str:
+    base = slugify(fallback)
+    if result.get("kind") == "local_markdown":
+        source = Path(str(result.get("source", ""))).expanduser()
+        base = slugify(source.stem or str(result.get("title", "")) or fallback)
+
+    candidate = base
+    suffix = 2
+    while candidate in used_stems:
+        candidate = f"{base}-{suffix}"
+        suffix += 1
+    used_stems.add(candidate)
+    return candidate
 
 
 def run_inspect(args: argparse.Namespace) -> int:
