@@ -199,7 +199,11 @@ def render_block(
         ordered_counters[parent_key] = ordered_counters.get(parent_key, 0) + 1
         return f"{'  ' * depth}{ordered_counters[parent_key]}. {block.text}".rstrip()
     if block.type == "code":
-        return f"```\n{block.text}\n```"
+        language = normalize_code_language(block.raw.get("language"))
+        return f"```{language}\n{block.text}\n```"
+    if block.type == "todo":
+        marker = "x" if read_bool(block.raw.get("checked")) else " "
+        return f"{'  ' * depth}- [{marker}] {block.text}".rstrip()
     if block.type == "divider":
         return "---"
     if block.type == "quote_container":
@@ -298,6 +302,20 @@ def render_table_cell(
 def normalize_table_cell(value: str) -> str:
     text = " ".join(line.strip() for line in value.splitlines() if line.strip())
     return text.replace("|", "\\|")
+
+
+def normalize_code_language(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+    return value.strip().split(maxsplit=1)[0]
+
+
+def read_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "checked", "done"}
+    return bool(value)
 
 
 def markdown_table_row(values: list[str]) -> str:

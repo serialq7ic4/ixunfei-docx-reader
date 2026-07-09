@@ -63,6 +63,58 @@ def test_convert_docx_client_vars_renders_basic_markdown() -> None:
     assert result.warnings == []
 
 
+def test_convert_docx_client_vars_renders_code_language() -> None:
+    client_vars = {
+        "block_map": {
+            "page_1": {"data": {"type": "page", "children": ["code_1"]}},
+            "code_1": {
+                "data": {
+                    "type": "code",
+                    "parent_id": "page_1",
+                    "language": "python",
+                    "text": {"initialAttributedTexts": {"text": {"0": "print('hi')"}}},
+                }
+            },
+        }
+    }
+
+    result = convert_docx_client_vars(client_vars, "page_1")
+
+    assert result.markdown == "```python\nprint('hi')\n```\n"
+    assert result.counts == Counter({"page": 1, "code": 1})
+    assert result.warnings == []
+
+
+def test_convert_docx_client_vars_renders_todo_items() -> None:
+    client_vars = {
+        "block_map": {
+            "page_1": {"data": {"type": "page", "children": ["todo_1", "todo_2"]}},
+            "todo_1": {
+                "data": {
+                    "type": "todo",
+                    "parent_id": "page_1",
+                    "checked": False,
+                    "text": {"initialAttributedTexts": {"text": {"0": "Open task"}}},
+                }
+            },
+            "todo_2": {
+                "data": {
+                    "type": "todo",
+                    "parent_id": "page_1",
+                    "checked": True,
+                    "text": {"initialAttributedTexts": {"text": {"0": "Done task"}}},
+                }
+            },
+        }
+    }
+
+    result = convert_docx_client_vars(client_vars, "page_1")
+
+    assert result.markdown == "- [ ] Open task\n\n- [x] Done task\n"
+    assert result.counts == Counter({"page": 1, "todo": 2})
+    assert result.warnings == []
+
+
 def test_convert_docx_client_vars_marks_unknown_blocks_without_losing_children() -> None:
     client_vars = {
         "block_map": {

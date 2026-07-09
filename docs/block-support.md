@@ -29,7 +29,8 @@
 | `text` | Renders paragraph text |
 | `bullet` | Renders unordered list items, including nested bullets |
 | `ordered` | Renders numbered list items among siblings |
-| `code` | Renders fenced code blocks without language metadata |
+| `todo` | Renders Markdown task-list items |
+| `code` | Renders fenced code blocks, including language metadata when available |
 | `divider` | Renders a Markdown horizontal rule |
 | `quote_container` | Renders child lines as Markdown blockquotes |
 | `callout` | Renders a `[callout]` marker plus supported child content |
