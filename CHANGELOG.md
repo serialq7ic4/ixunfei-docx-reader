@@ -6,7 +6,14 @@ This project keeps changelog entries human-written and release-focused. Update t
 
 ## Unreleased
 
-No unreleased changes yet.
+### Added
+
+- Added `ixfdoc inspect <source>` to print safe source-routing diagnostics without reading document content or exposing full remote tokens.
+- Added Markdown rendering for simple docx tables, task-list items, code block language metadata, and inline rich-text URL links.
+
+### Changed
+
+- Local Markdown outputs written with `--out-dir` now use source-derived filenames with collision-safe suffixes instead of generic `local-markdown-N.md` names.
 
 ## v0.1.3 - 2026-07-08
 
