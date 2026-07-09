@@ -252,6 +252,8 @@ scripts\smoke.ps1
 
 版本更新记录见 [`CHANGELOG.md`](CHANGELOG.md)。Release 流程见 [`docs/release.md`](docs/release.md)。JSON 错误契约见 [`docs/error-contract.md`](docs/error-contract.md)。
 
+贡献规范见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。提交 issue 或 PR 前，请先阅读隐私与安全要求，避免粘贴 cookie、完整私有链接、原始内部 API 响应或私有文档内容。
+
 ## 项目状态
 
 已完成：
