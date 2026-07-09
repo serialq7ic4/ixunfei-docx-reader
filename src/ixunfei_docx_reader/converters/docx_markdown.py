@@ -218,7 +218,9 @@ def render_block(
         expanded = options.expand_sheet(token)
         expanded_text = "\n".join(expanded) if isinstance(expanded, list) else str(expanded)
         return "\n".join(part for part in [marker, expanded_text.strip()] if part.strip())
-    if block.type in {"table", "table_cell", "whiteboard", "image", "mindnote", "isv"}:
+    if block.type == "table":
+        return render_table(tree, block, seen, warnings, options, ordered_counters)
+    if block.type in {"table_cell", "whiteboard", "image", "mindnote", "isv"}:
         return f"[{block.type}]"
 
     child_depth = depth + (1 if block.type else 0)
@@ -228,6 +230,78 @@ def render_block(
         if warning not in warnings:
             warnings.append(warning)
     return "\n\n".join(part for part in [block.text, children] if part.strip())
+
+
+def render_table(
+    tree: BlockTree,
+    block: Block,
+    seen: set[str],
+    warnings: list[str],
+    options: ConversionOptions,
+    ordered_counters: dict[str, int],
+) -> str:
+    rows = [str(row_id) for row_id in block.raw.get("rows_id", []) if row_id]
+    columns = [str(column_id) for column_id in block.raw.get("columns_id", []) if column_id]
+    cell_set = block.raw.get("cell_set", {})
+    if not rows or not columns or not isinstance(cell_set, dict):
+        return "[table]"
+
+    rendered_rows: list[list[str]] = []
+    for row_id in rows:
+        rendered_row: list[str] = []
+        for column_id in columns:
+            cell_id = table_cell_block_id(cell_set, row_id, column_id)
+            rendered_row.append(
+                render_table_cell(tree, cell_id, seen, warnings, options, ordered_counters)
+            )
+        rendered_rows.append(rendered_row)
+
+    if not rendered_rows:
+        return "[table]"
+    header = rendered_rows[0]
+    body = rendered_rows[1:]
+    lines = [
+        markdown_table_row(header),
+        markdown_table_row(["---"] * len(columns)),
+    ]
+    lines.extend(markdown_table_row(row) for row in body)
+    return "\n".join(lines)
+
+
+def table_cell_block_id(cell_set: dict[str, Any], row_id: str, column_id: str) -> str:
+    for key in (f"{row_id}_{column_id}", f"{row_id}{column_id}", f"row{row_id}col{column_id}"):
+        cell = cell_set.get(key)
+        if isinstance(cell, dict) and cell.get("block_id"):
+            return str(cell["block_id"])
+    for key, cell in cell_set.items():
+        if row_id in str(key) and column_id in str(key):
+            if isinstance(cell, dict) and cell.get("block_id"):
+                return str(cell["block_id"])
+    return ""
+
+
+def render_table_cell(
+    tree: BlockTree,
+    cell_id: str,
+    seen: set[str],
+    warnings: list[str],
+    options: ConversionOptions,
+    ordered_counters: dict[str, int],
+) -> str:
+    cell = tree.blocks.get(cell_id)
+    if cell is None:
+        return ""
+    rendered = render_children(tree, cell, 0, seen, warnings, options, ordered_counters)
+    return normalize_table_cell(rendered or cell.text)
+
+
+def normalize_table_cell(value: str) -> str:
+    text = " ".join(line.strip() for line in value.splitlines() if line.strip())
+    return text.replace("|", "\\|")
+
+
+def markdown_table_row(values: list[str]) -> str:
+    return "| " + " | ".join(values) + " |"
 
 
 def render_children(

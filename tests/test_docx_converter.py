@@ -150,6 +150,70 @@ def test_convert_docx_client_vars_preserves_resource_markers() -> None:
     assert result.warnings == []
 
 
+def test_convert_docx_client_vars_renders_simple_tables() -> None:
+    client_vars = {
+        "block_map": {
+            "page_1": {"data": {"type": "page", "children": ["table_1"]}},
+            "table_1": {
+                "data": {
+                    "type": "table",
+                    "parent_id": "page_1",
+                    "rows_id": ["row_1", "row_2"],
+                    "columns_id": ["col_1", "col_2"],
+                    "cell_set": {
+                        "row_1_col_1": {"block_id": "cell_1_1"},
+                        "row_1_col_2": {"block_id": "cell_1_2"},
+                        "row_2_col_1": {"block_id": "cell_2_1"},
+                        "row_2_col_2": {"block_id": "cell_2_2"},
+                    },
+                }
+            },
+            "cell_1_1": {"data": {"type": "table_cell", "children": ["text_1_1"]}},
+            "cell_1_2": {"data": {"type": "table_cell", "children": ["text_1_2"]}},
+            "cell_2_1": {"data": {"type": "table_cell", "children": ["text_2_1"]}},
+            "cell_2_2": {"data": {"type": "table_cell", "children": ["text_2_2"]}},
+            "text_1_1": {
+                "data": {
+                    "type": "text",
+                    "parent_id": "cell_1_1",
+                    "text": {"initialAttributedTexts": {"text": {"0": "Name"}}},
+                }
+            },
+            "text_1_2": {
+                "data": {
+                    "type": "text",
+                    "parent_id": "cell_1_2",
+                    "text": {"initialAttributedTexts": {"text": {"0": "Value"}}},
+                }
+            },
+            "text_2_1": {
+                "data": {
+                    "type": "text",
+                    "parent_id": "cell_2_1",
+                    "text": {"initialAttributedTexts": {"text": {"0": "Alpha"}}},
+                }
+            },
+            "text_2_2": {
+                "data": {
+                    "type": "text",
+                    "parent_id": "cell_2_2",
+                    "text": {"initialAttributedTexts": {"text": {"0": "42"}}},
+                }
+            },
+        }
+    }
+
+    result = convert_docx_client_vars(client_vars, "page_1")
+
+    assert result.markdown == (
+        "| Name | Value |\n"
+        "| --- | --- |\n"
+        "| Alpha | 42 |\n"
+    )
+    assert result.counts == Counter({"page": 1, "table": 1, "table_cell": 4, "text": 4})
+    assert result.warnings == []
+
+
 def test_convert_docx_client_vars_numbers_ordered_siblings() -> None:
     client_vars = {
         "block_map": {

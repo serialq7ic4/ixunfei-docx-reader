@@ -34,7 +34,7 @@
 | `quote_container` | Renders child lines as Markdown blockquotes |
 | `callout` | Renders a `[callout]` marker plus supported child content |
 | `sheet` | Renders a sheet marker, and TSV content when sheet expansion succeeds |
-| `table`, `table_cell` | Renders placeholders; table extraction is not yet complete |
+| `table`, `table_cell` | Renders simple structured tables as Markdown tables; falls back to placeholders when structure is incomplete |
 | `image`, `whiteboard`, `mindnote`, `isv` | Renders placeholders |
 | Unknown containers | Preserves supported child content and emits a warning |
 
