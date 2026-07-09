@@ -343,7 +343,7 @@ def inspect_local_source(source: str) -> dict[str, object]:
 
 
 def inspect_remote_source(source: str) -> dict[str, object]:
-    from urllib.parse import urlparse
+    from urllib.parse import parse_qs, urlparse
 
     parsed = urlparse(source)
     path = parsed.path
@@ -352,12 +352,17 @@ def inspect_remote_source(source: str) -> dict[str, object]:
     kind = "remote"
     route = "remote_read"
 
-    for candidate in ("docx", "wiki", "mindnotes"):
-        match = re.search(rf"/{candidate}/([^/?#]+)", path)
-        if match:
-            path_type = candidate
-            token = match.group(1)
-            break
+    if "/okr/user/" in path:
+        path_type = "okr"
+        query = parse_qs(parsed.query)
+        token = (query.get("okrId") or query.get("okr_id") or [""])[0]
+    else:
+        for candidate in ("docx", "wiki", "mindnotes"):
+            match = re.search(rf"/{candidate}/([^/?#]+)", path)
+            if match:
+                path_type = candidate
+                token = match.group(1)
+                break
 
     if path_type == "docx":
         kind = "docx"
@@ -368,6 +373,9 @@ def inspect_remote_source(source: str) -> dict[str, object]:
     elif path_type == "mindnotes":
         kind = "mindnote"
         route = "mindnote_client_vars"
+    elif path_type == "okr":
+        kind = "okr"
+        route = "okr_detail"
 
     return {
         "ok": True,
@@ -384,7 +392,8 @@ def inspect_remote_source(source: str) -> dict[str, object]:
 
 def redacted_remote_source(path: str, netloc: str, query: str, token: str) -> str:
     redacted_path = path.replace(token, "<redacted>", 1) if token else path
-    suffix = f"?{query}" if query else ""
+    redacted_query = query.replace(token, "<redacted>", 1) if token else query
+    suffix = f"?{redacted_query}" if redacted_query else ""
     return f"https://{netloc}{redacted_path}{suffix}"
 
 

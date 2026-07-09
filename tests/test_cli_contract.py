@@ -169,6 +169,33 @@ def test_inspect_docx_url_reports_safe_route_summary() -> None:
     }
 
 
+def test_inspect_okr_url_reports_safe_route_summary() -> None:
+    source = (
+        "https://tenant.xfchat.iflytek.com/okr/user/1000000000000000000/"
+        "?lang=zh-CN&okrId=2000000000000000000&type=leader"
+    )
+
+    result = run_module("inspect", source, "--json")
+
+    assert result.returncode == 0
+    assert "2000000000000000000" not in result.stdout
+    payload = json.loads(result.stdout)
+    assert payload == {
+        "ok": True,
+        "sourceRef": (
+            "https://tenant.xfchat.iflytek.com/okr/user/1000000000000000000/"
+            "?lang=zh-CN&okrId=<redacted>&type=leader"
+        ),
+        "remote": True,
+        "kind": "okr",
+        "host": "tenant.xfchat.iflytek.com",
+        "pathType": "okr",
+        "tokenPrefix": "200",
+        "tokenLength": len("2000000000000000000"),
+        "route": "okr_detail",
+    }
+
+
 def test_inspect_missing_local_file_returns_json_error(tmp_path: Path) -> None:
     missing = tmp_path / "missing.md"
 
