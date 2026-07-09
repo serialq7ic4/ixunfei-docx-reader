@@ -105,6 +105,7 @@ python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq
 | `ixfdoc update check` | 检查 GitHub Release 是否有新版本，并输出升级命令 |
 | `ixfdoc update skills` | 用当前已安装包刷新本地 Codex / Claude Code skill |
 | `ixfdoc read <source>...` | 将私有链接或本地 Markdown 文件读取为 Markdown/TSV 产物 |
+| `ixfdoc inspect <source>` | 输出某个来源的安全路由摘要，不读取正文、不打印完整 token |
 | `ixfdoc cookies export` | 从本机 i讯飞/LarkShell 桌面端会话导出 cookie |
 | `ixfdoc doctor` | 检查运行环境和 cookie 元数据，不打印 cookie 值 |
 | `ixfdoc --version` | 输出当前本地执行引擎版本 |
@@ -137,7 +138,8 @@ ixfdoc update skills --runtimes claude-code --json
 1. 打开 i讯飞/LarkShell 桌面端，并确认已经登录。
 2. 导出本地会话 cookie。
 3. 用 `doctor` 检查 cookie 文件形态，不会打印 cookie 值。
-4. 读取一个或多个私有文档链接。
+4. 可选用 `inspect` 检查单个链接的安全路由摘要，不读取正文。
+5. 读取一个或多个私有文档链接。
 
 ```bash
 ixfdoc cookies export \
@@ -147,6 +149,10 @@ ixfdoc cookies export \
 ixfdoc doctor \
   --json \
   --cookies /tmp/ixunfei_profile_explorer_cookies.json
+
+ixfdoc inspect \
+  "https://your-domain.xfchat.iflytek.com/wiki/xxxx" \
+  --json
 
 ixfdoc read \
   "https://your-domain.xfchat.iflytek.com/wiki/xxxx" \

@@ -105,6 +105,7 @@ You usually do not need to call these manually. They are mainly for debugging, a
 | `ixfdoc update check` | Check the latest GitHub Release and print an upgrade command |
 | `ixfdoc update skills` | Refresh local Codex / Claude Code skills from the installed package |
 | `ixfdoc read <source>...` | Read private links or local Markdown files into Markdown/TSV outputs |
+| `ixfdoc inspect <source>` | Print a safe source routing summary without reading content or printing full tokens |
 | `ixfdoc cookies export` | Export cookies from the local i讯飞/LarkShell desktop session |
 | `ixfdoc doctor` | Inspect runtime and cookie metadata without printing cookie values |
 | `ixfdoc --version` | Print the local execution engine version |
@@ -137,7 +138,8 @@ If you need to bypass the agent skill for low-level debugging:
 1. Open i讯飞/LarkShell desktop and confirm you are logged in.
 2. Export local session cookies.
 3. Run `doctor` to verify the cookie file shape without printing secrets.
-4. Read one or more private document links.
+4. Optionally run `inspect` to check a single source's safe routing summary without reading content.
+5. Read one or more private document links.
 
 ```bash
 ixfdoc cookies export \
@@ -147,6 +149,10 @@ ixfdoc cookies export \
 ixfdoc doctor \
   --json \
   --cookies /tmp/ixunfei_profile_explorer_cookies.json
+
+ixfdoc inspect \
+  "https://your-domain.xfchat.iflytek.com/wiki/xxxx" \
+  --json
 
 ixfdoc read \
   "https://your-domain.xfchat.iflytek.com/wiki/xxxx" \

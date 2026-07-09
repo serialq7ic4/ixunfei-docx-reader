@@ -99,6 +99,10 @@ def build_parser() -> argparse.ArgumentParser:
     read.add_argument("--cookies", default=DEFAULT_COOKIES)
     read.add_argument("--space-api", default=DEFAULT_SPACE_API)
 
+    inspect = subparsers.add_parser("inspect", help="Print a safe source routing summary.")
+    inspect.add_argument("source")
+    inspect.add_argument("--json", action="store_true", dest="as_json")
+
     doctor = subparsers.add_parser("doctor", help="Print local diagnostic information.")
     doctor.add_argument("--json", action="store_true", dest="as_json")
     doctor.add_argument("--cookies", default=DEFAULT_COOKIES)
@@ -273,6 +277,99 @@ def cleanup_outputs(manifest: dict[str, dict[str, object]], out_dir: Path) -> No
 def slugify(value: str) -> str:
     text = re.sub(r"[^a-zA-Z0-9]+", "-", value.strip().lower()).strip("-")
     return text or "doc"
+
+
+def run_inspect(args: argparse.Namespace) -> int:
+    payload = inspect_source(args.source)
+    if args.as_json:
+        print(json.dumps(payload, ensure_ascii=False))
+    else:
+        source_key = "sourceRef" if payload["remote"] else "source"
+        print(f"source {payload[source_key]}")
+        print(f"remote {str(payload['remote']).lower()}")
+        print(f"kind {payload['kind']}")
+        if payload["remote"]:
+            print(f"host {payload['host']}")
+            print(f"route {payload['route']}")
+        else:
+            print(f"path {payload['path']}")
+            print(f"exists {str(payload['exists']).lower()}")
+            print(f"readable {str(payload['readable']).lower()}")
+    return 0
+
+
+def inspect_source(source: str) -> dict[str, object]:
+    if source.startswith(("http://", "https://")):
+        return inspect_remote_source(source)
+    return inspect_local_source(source)
+
+
+def inspect_local_source(source: str) -> dict[str, object]:
+    path = Path(source).expanduser()
+    if not path.exists():
+        fail(
+            error_type="usage",
+            subtype="bad_args",
+            message=f"local file not found: {path}",
+            hint="Pass an existing local path or a supported i讯飞 document URL.",
+        )
+    return {
+        "ok": True,
+        "source": source,
+        "remote": False,
+        "kind": "local_markdown",
+        "path": str(path),
+        "exists": True,
+        "readable": os.access(path, os.R_OK),
+        "sizeBytes": path.stat().st_size,
+        "suffix": path.suffix,
+    }
+
+
+def inspect_remote_source(source: str) -> dict[str, object]:
+    from urllib.parse import urlparse
+
+    parsed = urlparse(source)
+    path = parsed.path
+    path_type = "remote"
+    token = ""
+    kind = "remote"
+    route = "remote_read"
+
+    for candidate in ("docx", "wiki", "mindnotes"):
+        match = re.search(rf"/{candidate}/([^/?#]+)", path)
+        if match:
+            path_type = candidate
+            token = match.group(1)
+            break
+
+    if path_type == "docx":
+        kind = "docx"
+        route = "docx_client_vars"
+    elif path_type == "wiki":
+        kind = "wiki"
+        route = "wiki_resolve_then_read"
+    elif path_type == "mindnotes":
+        kind = "mindnote"
+        route = "mindnote_client_vars"
+
+    return {
+        "ok": True,
+        "sourceRef": redacted_remote_source(parsed.path, parsed.netloc, parsed.query, token),
+        "remote": True,
+        "kind": kind,
+        "host": parsed.netloc,
+        "pathType": path_type,
+        "tokenPrefix": token[:3],
+        "tokenLength": len(token),
+        "route": route,
+    }
+
+
+def redacted_remote_source(path: str, netloc: str, query: str, token: str) -> str:
+    redacted_path = path.replace(token, "<redacted>", 1) if token else path
+    suffix = f"?{query}" if query else ""
+    return f"https://{netloc}{redacted_path}{suffix}"
 
 
 def run_doctor(args: argparse.Namespace) -> int:
@@ -538,6 +635,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "read":
         return run_read(args)
+    if args.command == "inspect":
+        return run_inspect(args)
     if args.command == "doctor":
         return run_doctor(args)
     if args.command == "cookies":

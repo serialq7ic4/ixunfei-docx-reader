@@ -125,6 +125,69 @@ def test_doctor_json_reports_cookie_metadata_without_values(tmp_path: Path) -> N
     }
 
 
+def test_inspect_local_markdown_reports_safe_summary(tmp_path: Path) -> None:
+    source = tmp_path / "private-source.md"
+    source.write_text("# Secret Title\n\nSensitive body should not appear.\n", encoding="utf-8")
+
+    result = run_module("inspect", str(source), "--json")
+
+    assert result.returncode == 0
+    assert "Secret Title" not in result.stdout
+    assert "Sensitive body" not in result.stdout
+    payload = json.loads(result.stdout)
+    assert payload == {
+        "ok": True,
+        "source": str(source),
+        "remote": False,
+        "kind": "local_markdown",
+        "path": str(source),
+        "exists": True,
+        "readable": True,
+        "sizeBytes": source.stat().st_size,
+        "suffix": ".md",
+    }
+
+
+def test_inspect_docx_url_reports_safe_route_summary() -> None:
+    source = "https://tenant.xfchat.iflytek.com/docx/doxfixturetoken?from=copy"
+
+    result = run_module("inspect", source, "--json")
+
+    assert result.returncode == 0
+    assert "doxfixturetoken" not in result.stdout
+    payload = json.loads(result.stdout)
+    assert payload == {
+        "ok": True,
+        "sourceRef": "https://tenant.xfchat.iflytek.com/docx/<redacted>?from=copy",
+        "remote": True,
+        "kind": "docx",
+        "host": "tenant.xfchat.iflytek.com",
+        "pathType": "docx",
+        "tokenPrefix": "dox",
+        "tokenLength": len("doxfixturetoken"),
+        "route": "docx_client_vars",
+    }
+
+
+def test_inspect_missing_local_file_returns_json_error(tmp_path: Path) -> None:
+    missing = tmp_path / "missing.md"
+
+    result = run_module("inspect", str(missing), "--json")
+
+    assert result.returncode == 2
+    payload = json.loads(result.stderr.strip().splitlines()[-1])
+    assert payload == {
+        "ok": False,
+        "error": {
+            "type": "usage",
+            "subtype": "bad_args",
+            "message": f"local file not found: {missing}",
+            "hint": "Pass an existing local path or a supported i讯飞 document URL.",
+            "retryable": False,
+        },
+    }
+
+
 def test_read_local_markdown_writes_output_and_manifest(tmp_path: Path) -> None:
     source = tmp_path / "source.md"
     source.write_text("# Source\n\nHello from local file.\n", encoding="utf-8")
