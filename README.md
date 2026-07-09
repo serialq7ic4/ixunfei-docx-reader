@@ -118,7 +118,7 @@ python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq
 ixfdoc update check
 ```
 
-如果已经升级了 Python 包，只需要刷新本地 agent skill：
+`ixfdoc update check` 只检查版本并输出升级命令，不会自动安装新版本。执行输出的 `python -m pip install --upgrade ...` 命令后，再刷新本地 agent skill：
 
 ```bash
 ixfdoc update skills --runtimes auto --json
@@ -130,6 +130,8 @@ ixfdoc update skills --runtimes auto --json
 ixfdoc update skills --runtimes codex --json
 ixfdoc update skills --runtimes claude-code --json
 ```
+
+注意：`ixfdoc update skills` 只刷新 Codex / Claude Code skill wrapper，不会升级 Python 执行引擎本身。开发者如果使用 editable/source 安装，`ixfdoc --version` 可能反映源码版本，而 pip 安装元数据仍是旧版本；面向普通用户分发前，请用 GitHub Release wheel 重新安装验证。
 
 ## 手动读取流程
 

@@ -118,7 +118,7 @@ You usually do not need to call these manually. They are mainly for debugging, a
 ixfdoc update check
 ```
 
-If the Python package is already upgraded, refresh only the local agent skill:
+`ixfdoc update check` only checks versions and prints an upgrade command; it does not install the new version automatically. After running the printed `python -m pip install --upgrade ...` command, refresh the local agent skill:
 
 ```bash
 ixfdoc update skills --runtimes auto --json
@@ -130,6 +130,8 @@ Refresh one agent runtime only:
 ixfdoc update skills --runtimes codex --json
 ixfdoc update skills --runtimes claude-code --json
 ```
+
+Note: `ixfdoc update skills` only refreshes the Codex / Claude Code skill wrapper. It does not upgrade the Python execution engine itself. For developer editable/source installs, `ixfdoc --version` may reflect the source checkout while pip package metadata still reports an older version; before distributing to regular users, verify with a fresh GitHub Release wheel install.
 
 ## Manual Read Flow
 
