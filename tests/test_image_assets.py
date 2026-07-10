@@ -302,9 +302,11 @@ def test_image_asset_writer_removes_stale_generated_files_before_download(
     asset_dir.mkdir(parents=True)
     stale_png = asset_dir / "image-001.png"
     stale_html = asset_dir / "image-002.html"
+    stale_large_ordinal = asset_dir / "image-1000.webp.part"
     unrelated = asset_dir / "keep.txt"
     stale_png.write_bytes(b"old private image")
     stale_html.write_text("old private content", encoding="utf-8")
+    stale_large_ordinal.write_bytes(b"old partial image")
     unrelated.write_text("keep", encoding="utf-8")
 
     session = FakeSession(
@@ -316,6 +318,7 @@ def test_image_asset_writer_removes_stale_generated_files_before_download(
     assert resolution.warning == "image 1 download failed: mime_error"
     assert not stale_png.exists()
     assert not stale_html.exists()
+    assert not stale_large_ordinal.exists()
     assert unrelated.read_text(encoding="utf-8") == "keep"
 
 

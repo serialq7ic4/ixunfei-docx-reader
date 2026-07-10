@@ -32,7 +32,7 @@ SUFFIX_MIME_TYPES = {
     ".tiff": "image/tiff",
 }
 SAFE_ASSET_GROUP = re.compile(r"^[a-zA-Z0-9_-]+$")
-GENERATED_IMAGE_FILE = re.compile(r"^image-\d{3}\.[a-z0-9]{1,8}(?:\.part)?$")
+GENERATED_IMAGE_FILE = re.compile(r"^image-\d{3,}\.[a-z0-9]{1,8}(?:\.part)?$")
 
 
 @dataclass(frozen=True)
