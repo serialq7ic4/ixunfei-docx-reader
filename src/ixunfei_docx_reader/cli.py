@@ -90,6 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
     read.add_argument("sources", nargs="*")
     read.add_argument("--out-dir", default="")
     read.add_argument("--expand-sheets", action="store_true")
+    read.add_argument("--download-images", action="store_true")
     read.add_argument("--print-manifest", action="store_true")
     read.add_argument(
         "--cleanup",
@@ -98,6 +99,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     read.add_argument("--cookies", default=DEFAULT_COOKIES)
     read.add_argument("--space-api", default=DEFAULT_SPACE_API)
+
+    cleanup = subparsers.add_parser("cleanup", help="Remove generated read artifacts.")
+    cleanup.add_argument("out_dir")
 
     inspect = subparsers.add_parser("inspect", help="Print a safe source routing summary.")
     inspect.add_argument("source")
@@ -158,12 +162,22 @@ def run_read(args: argparse.Namespace) -> int:
             message="read requires at least one source.",
             hint="Run `ixfdoc read <url-or-file>... --out-dir <dir>`.",
         )
+    if args.download_images and not args.out_dir:
+        fail(
+            error_type="usage",
+            subtype="bad_args",
+            message="--download-images requires --out-dir.",
+            hint="Pass `--out-dir <dir>` so image assets can be written locally.",
+        )
+    out_dir = Path(args.out_dir).expanduser() if args.out_dir else None
     try:
         results = read_sources(
             args.sources,
             cookies_path=Path(args.cookies).expanduser(),
             space_api=args.space_api,
             expand_sheets=args.expand_sheets,
+            download_images=args.download_images,
+            output_root=out_dir,
         )
     except FileNotFoundError as exc:
         message = str(exc)
@@ -203,8 +217,7 @@ def run_read(args: argparse.Namespace) -> int:
             hint="Check network access, document permissions, and whether the local desktop session is still valid.",
             retryable=True,
         )
-    if args.out_dir:
-        out_dir = Path(args.out_dir).expanduser()
+    if out_dir is not None:
         manifest = write_outputs(results, out_dir)
         if args.print_manifest:
             print(json.dumps(manifest, ensure_ascii=False, indent=2))
@@ -238,6 +251,8 @@ def read_local_source(source: str) -> dict[str, object]:
         "token": "",
         "content": path.read_text(encoding="utf-8"),
         "counts": {},
+        "assets": [],
+        "warnings": [],
     }
 
 
@@ -257,6 +272,8 @@ def write_outputs(results: list[dict[str, object]], out_dir: Path) -> dict[str, 
             "counts": result["counts"],
             "file": str(path),
             "source": result["source"],
+            "assets": result.get("assets", []),
+            "warnings": result.get("warnings", []),
         }
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2),
@@ -266,13 +283,82 @@ def write_outputs(results: list[dict[str, object]], out_dir: Path) -> dict[str, 
 
 
 def cleanup_outputs(manifest: dict[str, dict[str, object]], out_dir: Path) -> None:
-    generated_paths = [Path(str(item["file"])) for item in manifest.values()]
-    generated_paths.append(out_dir / "manifest.json")
+    root = out_dir.resolve()
+    generated_paths: list[Path] = []
+    generated_dirs: set[Path] = set()
+    for item in manifest.values():
+        file_path = generated_path(out_dir, root, item.get("file"))
+        if file_path is not None:
+            generated_paths.append(file_path)
+        assets = item.get("assets", [])
+        if not isinstance(assets, list):
+            continue
+        for asset in assets:
+            if not isinstance(asset, dict):
+                continue
+            asset_path = generated_path(out_dir, root, asset.get("path"))
+            if asset_path is None:
+                continue
+            generated_paths.append(asset_path)
+            generated_dirs.add(asset_path.parent)
+
     for path in generated_paths:
         with contextlib.suppress(FileNotFoundError):
             path.unlink()
+    with contextlib.suppress(FileNotFoundError):
+        (out_dir / "manifest.json").unlink()
+    generated_dirs.add(out_dir / "assets")
+    for directory in sorted(generated_dirs, key=lambda path: len(path.parts), reverse=True):
+        with contextlib.suppress(OSError):
+            directory.rmdir()
     with contextlib.suppress(OSError):
         out_dir.rmdir()
+
+
+def generated_path(out_dir: Path, root: Path, raw_path: object) -> Path | None:
+    if not raw_path:
+        return None
+    path = Path(str(raw_path))
+    candidate = path if path.is_absolute() else out_dir / path
+    resolved = candidate.resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError:
+        return None
+    return resolved
+
+
+def run_cleanup(args: argparse.Namespace) -> int:
+    out_dir = Path(args.out_dir).expanduser()
+    manifest_path = out_dir / "manifest.json"
+    if not manifest_path.exists():
+        fail(
+            error_type="usage",
+            subtype="bad_args",
+            message=f"manifest not found: {manifest_path}",
+            hint="Pass the output directory created by `ixfdoc read --out-dir`.",
+        )
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        fail(
+            error_type="usage",
+            subtype="bad_args",
+            message=f"invalid manifest: {manifest_path}",
+            hint="Pass an intact output directory created by `ixfdoc read --out-dir`.",
+        )
+    if not isinstance(manifest, dict) or not all(
+        isinstance(key, str) and isinstance(value, dict)
+        for key, value in manifest.items()
+    ):
+        fail(
+            error_type="usage",
+            subtype="bad_args",
+            message=f"invalid manifest: {manifest_path}",
+            hint="Pass an intact output directory created by `ixfdoc read --out-dir`.",
+        )
+    cleanup_outputs(manifest, out_dir)
+    return 0
 
 
 def slugify(value: str) -> str:
@@ -679,6 +765,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "read":
         return run_read(args)
+    if args.command == "cleanup":
+        return run_cleanup(args)
     if args.command == "inspect":
         return run_inspect(args)
     if args.command == "doctor":

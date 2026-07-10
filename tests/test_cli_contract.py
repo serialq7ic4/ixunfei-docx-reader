@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from ixunfei_docx_reader.cli import cleanup_outputs, write_outputs
+
 
 ROOT = Path(__file__).resolve().parents[1]
 TEST_ENV = {
@@ -289,6 +291,110 @@ def test_read_local_markdown_cleanup_removes_output_dir_after_manifest_print(
     assert item["kind"] == "local_markdown"
     assert item["file"] == str(out_dir / "source.md")
     assert not out_dir.exists()
+
+
+def test_read_download_images_requires_out_dir(tmp_path: Path) -> None:
+    source = tmp_path / "source.md"
+    source.write_text("# Source\n", encoding="utf-8")
+
+    result = run_module("read", str(source), "--download-images")
+
+    assert result.returncode == 2
+    payload = json.loads(result.stderr.strip().splitlines()[-1])
+    assert payload["error"]["subtype"] == "bad_args"
+    assert payload["error"]["message"] == "--download-images requires --out-dir."
+
+
+def test_write_outputs_records_assets_and_cleanup_removes_only_generated_files(
+    tmp_path: Path,
+) -> None:
+    out_dir = tmp_path / "out"
+    asset = out_dir / "assets" / "docx_1" / "image-001.png"
+    asset.parent.mkdir(parents=True)
+    asset.write_bytes(b"image")
+    keep = out_dir / "keep.txt"
+    keep.write_text("keep", encoding="utf-8")
+    results = [
+        {
+            "source": "https://example.com/docx/redacted",
+            "kind": "docx",
+            "title": "Image Doc",
+            "token": "dox-document-token",
+            "content": "# Image Doc\n\n![image](assets/docx_1/image-001.png)\n",
+            "counts": {"image": 1},
+            "assets": [
+                {
+                    "path": "assets/docx_1/image-001.png",
+                    "mimeType": "image/png",
+                    "width": 1200,
+                    "height": 800,
+                    "sizeBytes": 5,
+                    "status": "downloaded",
+                    "ordinal": 1,
+                }
+            ],
+            "warnings": ["image 2 download failed: http_error"],
+        }
+    ]
+
+    manifest = write_outputs(results, out_dir)
+
+    assert manifest["docx_1"]["assets"] == results[0]["assets"]
+    assert manifest["docx_1"]["warnings"] == results[0]["warnings"]
+    assert "boxr" not in json.dumps(manifest)
+    cleanup_outputs(manifest, out_dir)
+    assert not asset.exists()
+    assert keep.read_text(encoding="utf-8") == "keep"
+    assert not (out_dir / "manifest.json").exists()
+
+
+def test_cleanup_command_removes_recorded_artifacts(tmp_path: Path) -> None:
+    out_dir = tmp_path / "out"
+    asset = out_dir / "assets" / "docx_1" / "image-001.png"
+    markdown = out_dir / "docx-1.md"
+    keep = out_dir / "keep.txt"
+    asset.parent.mkdir(parents=True)
+    asset.write_bytes(b"image")
+    markdown.write_text("# Doc\n", encoding="utf-8")
+    keep.write_text("keep", encoding="utf-8")
+    (out_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "docx_1": {
+                    "file": str(markdown),
+                    "assets": [{"path": "assets/docx_1/image-001.png"}],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = run_module("cleanup", str(out_dir))
+
+    assert result.returncode == 0
+    assert not markdown.exists()
+    assert not asset.exists()
+    assert keep.read_text(encoding="utf-8") == "keep"
+    assert not (out_dir / "manifest.json").exists()
+
+
+def test_cleanup_outputs_ignores_manifest_paths_outside_output_root(tmp_path: Path) -> None:
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    outside = tmp_path / "outside.png"
+    outside.write_bytes(b"private")
+    manifest = {
+        "docx_1": {
+            "file": str(out_dir / "docx-1.md"),
+            "assets": [{"path": "../outside.png"}],
+        }
+    }
+    (out_dir / "docx-1.md").write_text("# Doc\n", encoding="utf-8")
+    (out_dir / "manifest.json").write_text("{}", encoding="utf-8")
+
+    cleanup_outputs(manifest, out_dir)
+
+    assert outside.read_bytes() == b"private"
 
 
 def test_read_cleanup_preserves_unrelated_files_in_output_dir(tmp_path: Path) -> None:
