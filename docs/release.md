@@ -21,14 +21,23 @@ Run before tagging:
 python -m compileall -q src
 python -m pytest -q
 python -m ruff check .
+rm -rf dist build
 python -m build
 scripts/smoke.sh
 ```
 
-For releases that change packaged skills, also verify the explicit update path:
+The smoke scripts require exactly one wheel under `dist/`. They install that
+wheel into a temporary virtual environment, compare the CLI version with the
+installed package metadata, and install the bundled Codex skill under a
+temporary home directory. They do not use a globally installed `ixfdoc`.
+
+For releases that change packaged skills, also verify the explicit update path
+after installing the published wheel:
 
 ```bash
-ixfdoc update skills --runtimes none --json
+ixfdoc --version
+python -m pip show ixunfei-docx-reader
+ixfdoc update skills --runtimes codex --json
 ixfdoc update check --json
 ```
 
@@ -40,6 +49,9 @@ git push origin vX.Y.Z
 ```
 
 The GitHub Actions release workflow builds `sdist` and `wheel` artifacts, uploads them as workflow artifacts, and attaches them to the GitHub Release.
+It extracts the matching tag section from `CHANGELOG.md` and uses that content
+as the Release body. If the tag has no changelog section, the workflow fails
+instead of creating a Release with empty notes.
 
 After the workflow completes, confirm the GitHub Release contains:
 

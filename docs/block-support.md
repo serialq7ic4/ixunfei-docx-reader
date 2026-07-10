@@ -36,7 +36,12 @@
 | `callout` | Renders a `[callout]` marker plus supported child content |
 | `sheet` | Renders a sheet marker, and TSV content when sheet expansion succeeds |
 | `table`, `table_cell` | Renders simple structured tables as Markdown tables; falls back to placeholders when structure is incomplete |
-| `image`, `whiteboard`, `mindnote`, `isv` | Renders placeholders |
+| `image` | Renders `[image]` by default; `--download-images` writes a local sidecar and renders a relative Markdown image link |
+| `whiteboard`, `mindnote`, `isv` | Renders placeholders |
+
+`ixfdoc outline` and `ixfdoc chunk` create dynamic reading boundaries without
+splitting the complete Markdown file. Fenced code, tables, and downloaded
+image blocks remain atomic.
 | Unknown containers | Preserves supported child content and emits a warning |
 
 ## Safety

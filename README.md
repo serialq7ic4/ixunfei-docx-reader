@@ -48,7 +48,7 @@
 手动命令：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.5/ixunfei_docx_reader-0.1.5-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.6/ixunfei_docx_reader-0.1.6-py3-none-any.whl"
 ixfdoc setup skills --runtimes codex --json
 ixfdoc --version
 ```
@@ -62,7 +62,7 @@ ixfdoc --version
 手动命令：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.5/ixunfei_docx_reader-0.1.5-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.6/ixunfei_docx_reader-0.1.6-py3-none-any.whl"
 ixfdoc setup skills --runtimes claude-code --json
 ixfdoc --version
 ```
@@ -70,7 +70,7 @@ ixfdoc --version
 ### 同时安装到两个 agent
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.5/ixunfei_docx_reader-0.1.5-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.6/ixunfei_docx_reader-0.1.6-py3-none-any.whl"
 ixfdoc setup skills --runtimes auto --json
 ixfdoc --version
 ```
@@ -78,7 +78,7 @@ ixfdoc --version
 Windows cookie 导出目前仍是实验支持。Windows 安装时把 `[crypto]` 换成 `[windows]`：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.5/ixunfei_docx_reader-0.1.5-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.6/ixunfei_docx_reader-0.1.6-py3-none-any.whl"
 ```
 
 `crypto` 用于 macOS cookie 解密。Windows 已有 CI 和单元测试覆盖，但还需要在真实 Windows i讯飞/LarkShell 桌面端登录环境验证后，才会提升为 Tier 1 支持。
@@ -105,6 +105,9 @@ python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq
 | `ixfdoc update check` | 检查 GitHub Release 是否有新版本，并输出升级命令 |
 | `ixfdoc update skills` | 用当前已安装包刷新本地 Codex / Claude Code skill |
 | `ixfdoc read <source>...` | 将私有链接或本地 Markdown 文件读取为 Markdown/TSV 产物 |
+| `ixfdoc outline <file> --json` | 按标题和原子块生成动态阅读目录 |
+| `ixfdoc chunk <file> --index N` | 读取指定动态分块，不生成拆分文件 |
+| `ixfdoc cleanup <out-dir>` | 阅读和图片分析完成后删除生成产物 |
 | `ixfdoc inspect <source>` | 输出某个来源的安全路由摘要，不读取正文、不打印完整 token |
 | `ixfdoc cookies export` | 从本机 i讯飞/LarkShell 桌面端会话导出 cookie |
 | `ixfdoc doctor` | 检查运行环境和 cookie 元数据，不打印 cookie 值 |
@@ -190,6 +193,10 @@ ixfdoc read "<private-link>" \
 
 `--cleanup` 只会删除本次命令生成的文件，不会递归删除输出目录里的其他内容。
 
+包含图片的 agent 工作流应使用 `--download-images`，先通过 `outline` /
+`chunk` 读完所有文字、表格和代码，再查看每个 chunk 的 `imagePaths`，
+最后执行 `ixfdoc cleanup <out-dir>`。完整 Markdown 始终只落盘为一个文件。
+
 这些 skill 不重复实现文档解析逻辑。它们调用 `ixfdoc read`，读取 CLI 的 manifest / JSON error contract，并按 CLI 返回的 hint 处理错误。
 
 打包的 skill 源文件在：
@@ -244,6 +251,8 @@ python -m ruff check .
 python -m build
 scripts/smoke.sh
 ```
+
+smoke 脚本会要求 `dist/` 中恰好存在一个 wheel，并在临时虚拟环境和临时 HOME 中验证 wheel 的包版本、CLI 入口和内置 Codex skill，不会使用全局已安装的 `ixfdoc`。
 
 Windows：
 

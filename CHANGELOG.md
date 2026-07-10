@@ -6,6 +6,24 @@ This project keeps changelog entries human-written and release-focused. Update t
 
 ## Unreleased
 
+## v0.1.6 - 2026-07-10
+
+### Added
+
+- Added authenticated download of docx image blocks into local sidecar assets.
+- Added heading-aware `outline` and `chunk` commands that preserve code, tables, and images as atomic blocks.
+- Added explicit artifact cleanup for agent reading workflows.
+
+### Changed
+
+- Updated Codex and Claude Code skills to read every dynamic chunk and inspect every downloaded image before cleanup.
+- Updated smoke tests to install and verify the newly built wheel instead of using a globally installed `ixfdoc`.
+- Updated the release workflow to publish the matching changelog section as GitHub Release notes.
+
+### Security
+
+- Kept image resource tokens and authenticated media URLs out of Markdown, manifests, warnings, and filenames.
+
 ## v0.1.5 - 2026-07-10
 
 ### Added

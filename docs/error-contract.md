@@ -39,3 +39,10 @@ For OKR URLs, `inspect` redacts both the owner ID in the URL path and the `okrId
 ## Remote Error Safety
 
 `remote.remote_read_failed` errors provide an operation-level summary and retry guidance. OKR failures do not include raw API payload values, Objective/KR content, or other private response fields.
+
+## Media Warnings
+
+Image download failures do not fail the document read. They are returned in
+the manifest as safe reason codes such as `image 2 download failed:
+http_error`. Resource tokens, authenticated URLs, response bodies, cookies,
+and CSRF values are never included.
