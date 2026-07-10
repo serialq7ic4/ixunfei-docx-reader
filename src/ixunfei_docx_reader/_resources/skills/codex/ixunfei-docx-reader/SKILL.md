@@ -11,17 +11,27 @@ Use the `ixfdoc` CLI as the source of truth. Do not reimplement document parsing
 
 ```bash
 out="$(mktemp -d /tmp/ixfdoc.XXXXXX)"
-ixfdoc read "<source>" --out-dir "$out" --expand-sheets --print-manifest --cleanup
+ixfdoc read "<source>" --out-dir "$out" --expand-sheets --download-images --print-manifest
 ```
 
 Multiple sources are allowed:
 
 ```bash
 out="$(mktemp -d /tmp/ixfdoc.XXXXXX)"
-ixfdoc read "<url-1>" "<url-2>" "/path/to/local.md" --out-dir "$out" --expand-sheets --print-manifest --cleanup
+ixfdoc read "<url-1>" "<url-2>" "/path/to/local.md" --out-dir "$out" --expand-sheets --download-images --print-manifest
 ```
 
 OKR pages are supported by the same command and are rendered as Objective / Key Result Markdown.
+
+For every generated Markdown file, run `ixfdoc outline "<file>" --json`, then
+read every index with `ixfdoc chunk "<file>" --index <n>`. Inspect every local
+path listed in each chunk's `imagePaths` with the runtime's image-viewing
+capability. Answers must incorporate text, tables, code blocks, and image
+content. Do not use `read --cleanup`, because it removes artifacts before they
+can be inspected.
+
+Always run `ixfdoc cleanup "$out"` in a final step, including when reading,
+chunking, image inspection, or analysis fails.
 
 ## Error Handling
 

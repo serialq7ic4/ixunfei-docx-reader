@@ -26,6 +26,7 @@ from ixunfei_docx_reader.cookies.windows_larkshell import (
 )
 from ixunfei_docx_reader.reader import DEFAULT_COOKIES, DEFAULT_SPACE_API, read_sources
 from ixunfei_docx_reader.reader import load_cookie_objects
+from ixunfei_docx_reader.markdown_chunks import build_outline, render_chunk
 
 
 EXIT_CODES = {
@@ -102,6 +103,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     cleanup = subparsers.add_parser("cleanup", help="Remove generated read artifacts.")
     cleanup.add_argument("out_dir")
+
+    outline = subparsers.add_parser("outline", help="Print heading-aware chunk metadata.")
+    outline.add_argument("source")
+    outline.add_argument("--target-chars", type=int, default=12000)
+    outline.add_argument("--json", action="store_true", dest="as_json")
+
+    chunk = subparsers.add_parser("chunk", help="Print one heading-aware Markdown chunk.")
+    chunk.add_argument("source")
+    chunk.add_argument("--index", type=int, required=True)
+    chunk.add_argument("--target-chars", type=int, default=12000)
 
     inspect = subparsers.add_parser("inspect", help="Print a safe source routing summary.")
     inspect.add_argument("source")
@@ -358,6 +369,73 @@ def run_cleanup(args: argparse.Namespace) -> int:
             hint="Pass an intact output directory created by `ixfdoc read --out-dir`.",
         )
     cleanup_outputs(manifest, out_dir)
+    return 0
+
+
+def read_chunk_source(source: str, target_chars: int) -> tuple[Path, str]:
+    path = Path(source).expanduser()
+    if not path.exists() or not path.is_file():
+        fail(
+            error_type="usage",
+            subtype="bad_args",
+            message=f"local file not found: {path}",
+            hint="Pass a generated Markdown file.",
+        )
+    if target_chars <= 0:
+        fail(
+            error_type="usage",
+            subtype="bad_args",
+            message="target_chars must be positive.",
+            hint="Pass `--target-chars` greater than zero.",
+        )
+    return path, path.read_text(encoding="utf-8")
+
+
+def run_outline(args: argparse.Namespace) -> int:
+    path, markdown = read_chunk_source(args.source, args.target_chars)
+    outline = build_outline(markdown, args.target_chars)
+    payload = {
+        "ok": True,
+        "file": str(path),
+        "selectedHeadingLevel": outline.selected_heading_level,
+        "chunks": [
+            {
+                "index": chunk.index,
+                "breadcrumb": chunk.breadcrumb,
+                "startLine": chunk.start_line,
+                "endLine": chunk.end_line,
+                "charCount": chunk.char_count,
+                "imagePaths": list(chunk.image_paths),
+            }
+            for chunk in outline.chunks
+        ],
+    }
+    if args.as_json:
+        print(json.dumps(payload, ensure_ascii=False))
+    else:
+        for chunk in payload["chunks"]:
+            print(
+                f"{chunk['index']}\t{chunk['startLine']}-{chunk['endLine']}\t"
+                f"{chunk['breadcrumb']}"
+            )
+    return 0
+
+
+def run_chunk(args: argparse.Namespace) -> int:
+    _, markdown = read_chunk_source(args.source, args.target_chars)
+    outline = build_outline(markdown, args.target_chars)
+    if args.index < 1 or args.index > len(outline.chunks):
+        fail(
+            error_type="usage",
+            subtype="bad_args",
+            message=f"chunk index out of range: {args.index}",
+            hint=f"Pass an index from 1 to {len(outline.chunks)}.",
+        )
+    chunk = outline.chunks[args.index - 1]
+    breadcrumb = chunk.breadcrumb.replace("\\", "\\\\").replace('"', '\\"')
+    print(f'[chunk {chunk.index}/{len(outline.chunks)} breadcrumb="{breadcrumb}"]')
+    print()
+    sys.stdout.write(render_chunk(markdown, outline, args.index))
     return 0
 
 
@@ -767,6 +845,10 @@ def main(argv: list[str] | None = None) -> int:
         return run_read(args)
     if args.command == "cleanup":
         return run_cleanup(args)
+    if args.command == "outline":
+        return run_outline(args)
+    if args.command == "chunk":
+        return run_chunk(args)
     if args.command == "inspect":
         return run_inspect(args)
     if args.command == "doctor":

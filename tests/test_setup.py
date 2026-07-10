@@ -84,6 +84,30 @@ def test_install_skill_wrappers_can_use_packaged_wrapper_sources(tmp_path: Path)
     assert payload["installed"][0]["runtime"] == "codex"
 
 
+def test_packaged_agent_skills_cleanup_generated_artifacts_on_exit() -> None:
+    root = packaged_project_root()
+
+    for runtime in ("codex", "claude-code"):
+        skill = (
+            root / "skills" / runtime / "ixunfei-docx-reader" / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        normalized = " ".join(skill.split())
+
+        assert (
+            'Always run `ixfdoc cleanup "$out"` in a final step, including when '
+            "reading, chunking, image inspection, or analysis fails."
+        ) in normalized
+        assert "--download-images" in skill
+        assert "ixfdoc outline" in skill
+        assert "ixfdoc chunk" in skill
+        assert "imagePaths" in skill
+        read_commands = [
+            line for line in skill.splitlines() if line.startswith("ixfdoc read ")
+        ]
+        assert read_commands
+        assert all("--cleanup" not in command for command in read_commands)
+
+
 def test_built_wheel_setup_skills_can_install_packaged_codex_wrapper(tmp_path: Path) -> None:
     dist_dir = tmp_path / "dist"
     subprocess.run(

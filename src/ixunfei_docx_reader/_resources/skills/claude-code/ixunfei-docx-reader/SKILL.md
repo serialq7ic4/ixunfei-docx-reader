@@ -11,12 +11,19 @@ This skill is a thin wrapper around the shared `ixfdoc` CLI.
 
 ```bash
 out="$(mktemp -d /tmp/ixfdoc.XXXXXX)"
-ixfdoc read "<source>" --out-dir "$out" --expand-sheets --print-manifest --cleanup
+ixfdoc read "<source>" --out-dir "$out" --expand-sheets --download-images --print-manifest
 ```
 
 OKR pages are supported by the same command and are rendered as Objective / Key Result Markdown.
 
-Use the manifest output to locate generated files while the command is running. With `--cleanup`, generated Markdown/TSV files are removed before the command exits.
+Use the manifest to locate each Markdown file. Run `ixfdoc outline "<file>"
+--json`, read every chunk with `ixfdoc chunk "<file>" --index <n>`, and inspect
+every local image listed in `imagePaths`. Incorporate text, tables, code, and
+image content in the answer. Do not use `read --cleanup`, because it removes
+artifacts before they can be inspected.
+
+Always run `ixfdoc cleanup "$out"` in a final step, including when reading,
+chunking, image inspection, or analysis fails.
 
 ## Non-Zero Exit
 

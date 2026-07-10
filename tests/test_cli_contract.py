@@ -397,6 +397,58 @@ def test_cleanup_outputs_ignores_manifest_paths_outside_output_root(tmp_path: Pa
     assert outside.read_bytes() == b"private"
 
 
+def test_outline_json_reports_chunk_metadata_without_bodies(tmp_path: Path) -> None:
+    source = tmp_path / "doc.md"
+    source.write_text(
+        "# Title\n\n## One\n\nAlpha\n\n## Two\n\n![Diagram](assets/image.png)\n",
+        encoding="utf-8",
+    )
+
+    result = run_module("outline", str(source), "--json", "--target-chars", "20")
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["selectedHeadingLevel"] == 2
+    assert payload["chunks"]
+    assert payload["chunks"][-1]["imagePaths"] == ["assets/image.png"]
+    assert "Alpha" not in result.stdout
+
+
+def test_chunk_prints_breadcrumb_and_original_markdown(tmp_path: Path) -> None:
+    source = tmp_path / "doc.md"
+    source.write_text("# Title\n\n## One\n\nAlpha\n", encoding="utf-8")
+
+    result = run_module("chunk", str(source), "--index", "2", "--target-chars", "20")
+
+    assert result.returncode == 0
+    assert result.stdout.startswith('[chunk 2/2 breadcrumb="Title > One"]\n\n')
+    assert "## One\n\nAlpha\n" in result.stdout
+
+
+def test_chunk_invalid_index_returns_structured_error(tmp_path: Path) -> None:
+    source = tmp_path / "doc.md"
+    source.write_text("# Title\n", encoding="utf-8")
+
+    result = run_module("chunk", str(source), "--index", "9")
+
+    assert result.returncode == 2
+    payload = json.loads(result.stderr.strip().splitlines()[-1])
+    assert payload["error"]["subtype"] == "bad_args"
+    assert payload["error"]["message"] == "chunk index out of range: 9"
+
+
+def test_outline_nonpositive_target_returns_structured_error(tmp_path: Path) -> None:
+    source = tmp_path / "doc.md"
+    source.write_text("# Title\n", encoding="utf-8")
+
+    result = run_module("outline", str(source), "--target-chars", "0", "--json")
+
+    assert result.returncode == 2
+    payload = json.loads(result.stderr.strip().splitlines()[-1])
+    assert payload["error"]["subtype"] == "bad_args"
+    assert payload["error"]["message"] == "target_chars must be positive."
+
+
 def test_read_cleanup_preserves_unrelated_files_in_output_dir(tmp_path: Path) -> None:
     source = tmp_path / "source.md"
     source.write_text("# Source\n\nSensitive local content.\n", encoding="utf-8")
