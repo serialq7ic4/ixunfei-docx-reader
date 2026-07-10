@@ -3,7 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import pytest
+
 import ixunfei_docx_reader.reader as reader
+
+
+OKR_URL = (
+    "https://example.xfchat.iflytek.com/okr/user/1000000000000000000/"
+    "?okrId=2000000000000000000"
+)
 
 
 @dataclass
@@ -91,6 +99,20 @@ class FakeSession:
         raise AssertionError(f"unexpected GET {url}")
 
 
+class PayloadSession:
+    def __init__(self, payload: dict[str, Any]) -> None:
+        self.cookies = FakeCookies()
+        self.payload = payload
+
+    def get(self, url: str, **kwargs: Any) -> FakeResponse:
+        if url == "https://www.xfchat.iflytek.com/lgw/csrf_token":
+            self.cookies.values["lgw_csrf_token"] = "lgw-fixture"
+            return FakeResponse({})
+        if "/okrx/api/okr/owner/aggr_detail/" in url:
+            return FakeResponse(self.payload)
+        raise AssertionError(f"unexpected GET {url}")
+
+
 def test_detect_remote_kind_recognizes_okr_url() -> None:
     assert (
         reader.detect_remote_kind(
@@ -125,3 +147,41 @@ def test_read_okr_uses_lgw_csrf_and_okr_id_query_param() -> None:
     assert "okr_id=2000000000000000000" in detail_url
     assert "okrId=" not in detail_url
     assert detail_kwargs["headers"]["x-lgw-csrf-token"] == "lgw-fixture"
+
+
+def test_read_okr_nonzero_response_does_not_expose_payload() -> None:
+    session = PayloadSession(
+        {
+            "code": 403,
+            "message": "private failure",
+            "okr_detail_data": {"objective_list": [{"name": "secret objective"}]},
+        }
+    )
+
+    with pytest.raises(RuntimeError) as exc_info:
+        reader.read_okr(session, OKR_URL)  # type: ignore[arg-type]
+
+    message = str(exc_info.value)
+    assert message == "OKR aggr_detail failed with code 403."
+    assert "private failure" not in message
+    assert "secret objective" not in message
+
+
+def test_read_okr_unexpected_shape_reports_keys_not_values() -> None:
+    session = PayloadSession(
+        {
+            "code": 0,
+            "data": ["secret value"],
+            "trace": "private trace",
+        }
+    )
+
+    with pytest.raises(RuntimeError) as exc_info:
+        reader.read_okr(session, OKR_URL)  # type: ignore[arg-type]
+
+    message = str(exc_info.value)
+    assert message == (
+        "OKR aggr_detail returned an unexpected payload shape; keys: code, data, trace."
+    )
+    assert "secret value" not in message
+    assert "private trace" not in message

@@ -637,6 +637,16 @@ def okr_progress_text(progress: Any) -> str:
     return f"{numeric:g}%"
 
 
+def okr_response_error(operation: str, payload: object) -> str:
+    if not isinstance(payload, dict):
+        return f"{operation} returned an unexpected payload type: {type(payload).__name__}."
+    code = payload.get("code")
+    if code not in {0, None}:
+        return f"{operation} failed with code {code}."
+    keys = ", ".join(sorted(str(key) for key in payload))
+    return f"{operation} returned an unexpected payload shape; keys: {keys or '(none)'}."
+
+
 def render_okr_markdown(
     detail: dict[str, Any],
     okr_id: str,
@@ -693,8 +703,8 @@ def read_okr(
     )
     response.raise_for_status()
     payload = response.json()
-    if payload.get("code") not in {0, None}:
-        raise RuntimeError(f"OKR aggr_detail failed: {payload}")
+    if not isinstance(payload, dict) or payload.get("code") not in {0, None}:
+        raise RuntimeError(okr_response_error("OKR aggr_detail", payload))
     detail = (
         payload.get("okr_detail_data")
         or payload.get("okrDetailData")
@@ -702,7 +712,7 @@ def read_okr(
         or {}
     )
     if not isinstance(detail, dict):
-        raise RuntimeError(f"OKR aggr_detail returned an unexpected payload: {payload}")
+        raise RuntimeError(okr_response_error("OKR aggr_detail", payload))
     return render_okr_markdown(detail, okr_id)
 
 
