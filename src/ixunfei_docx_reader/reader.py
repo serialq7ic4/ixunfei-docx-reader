@@ -795,27 +795,21 @@ def read_remote(
     download_images: bool = False,
     output_root: Path | None = None,
     asset_group: str = "",
-) -> tuple[
-    str,
-    str,
-    str,
-    str,
-    Counter[str],
-    list[dict[str, Any]],
-    list[str],
-]:
+    assets_out: list[dict[str, Any]] | None = None,
+    warnings_out: list[str] | None = None,
+) -> tuple[str, str, str, str, Counter[str]]:
     kind = detect_remote_kind(source)
     if kind == "okr":
         title, token, body, counts = read_okr(session, source)
-        return kind, title, token, body, counts, [], []
+        return kind, title, token, body, counts
     if kind == "mindnote":
         title, token, body, counts = read_mindnote(session, source, csrf_token)
-        return kind, title, token, body, counts, [], []
+        return kind, title, token, body, counts
 
     html = fetch_html(session, source, csrf_token)
     if kind == "wiki" and "window.wiki_suite_type = 'bitable'" in html:
         title, token, body, counts = read_bitable_wiki(session, source, html, csrf_token)
-        return "wiki_bitable", title, token, body, counts, [], []
+        return "wiki_bitable", title, token, body, counts
     origin = origin_for(source)
     token = extract_doc_token(source, html)
     data = client_vars(session, space_api, token, origin, csrf_token)
@@ -860,7 +854,11 @@ def read_remote(
     root = data.get("block_map", {}).get(token, {})
     root_data = root.get("data", root) if isinstance(root, dict) else {}
     title = extract_text(root_data) or token if isinstance(root_data, dict) else token
-    return kind, title, token, body, counts, conversion.assets, conversion.warnings
+    if assets_out is not None:
+        assets_out.extend(conversion.assets)
+    if warnings_out is not None:
+        warnings_out.extend(conversion.warnings)
+    return kind, title, token, body, counts
 
 
 def read_local(source: str) -> tuple[str, str]:
@@ -895,7 +893,9 @@ def read_sources(
         if is_remote(source):
             assert session is not None
             kind_hint = detect_remote_kind(source)
-            kind, title, token, content, counts, assets, warnings = read_remote(
+            assets: list[dict[str, Any]] = []
+            warnings: list[str] = []
+            kind, title, token, content, counts = read_remote(
                 session,
                 source,
                 space_api,
@@ -904,6 +904,8 @@ def read_sources(
                 download_images=download_images,
                 output_root=output_root,
                 asset_group=f"{kind_hint}_{index}",
+                assets_out=assets,
+                warnings_out=warnings,
             )
         else:
             title, content = read_local(source)

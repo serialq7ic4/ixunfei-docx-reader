@@ -109,7 +109,7 @@ def test_read_remote_uses_readable_text_for_rich_text_page_title(monkeypatch: An
     monkeypatch.setattr(reader, "extract_doc_token", lambda *args: "page_1")
     monkeypatch.setattr(reader, "client_vars", lambda *args: client_vars_data)
 
-    _, title, _, body, _, assets, warnings = reader.read_remote(
+    _, title, _, body, _ = reader.read_remote(
         object(),  # type: ignore[arg-type]
         "https://example.com/docx/page_1",
         "https://internal-api-space.xfchat.iflytek.com",
@@ -119,8 +119,6 @@ def test_read_remote_uses_readable_text_for_rich_text_page_title(monkeypatch: An
 
     assert title == "Readable Title"
     assert body == "# Readable Title\n"
-    assert assets == []
-    assert warnings == []
 
 
 def test_read_remote_uses_image_asset_writer_when_enabled(
@@ -184,7 +182,9 @@ def test_read_remote_uses_image_asset_writer_when_enabled(
     monkeypatch.setattr(reader, "ImageAssetWriter", StubImageAssetWriter)
     session = object()
 
-    kind, title, token, body, counts, assets, warnings = reader.read_remote(
+    assets: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    kind, title, token, body, counts = reader.read_remote(
         session,  # type: ignore[arg-type]
         "https://example.com/docx/page_1",
         "https://internal-api-space.xfchat.iflytek.com",
@@ -193,6 +193,8 @@ def test_read_remote_uses_image_asset_writer_when_enabled(
         download_images=True,
         output_root=tmp_path,
         asset_group="docx_1",
+        assets_out=assets,
+        warnings_out=warnings,
     )
 
     assert kind == "docx"
@@ -240,3 +242,39 @@ def test_read_sources_requires_output_root_when_downloading_images() -> None:
         assert str(exc) == "download_images requires output_root."
     else:
         raise AssertionError("expected download_images output_root validation")
+
+
+def test_read_remote_non_docx_kind_keeps_artifact_collectors_empty(
+    monkeypatch: Any,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        reader,
+        "read_mindnote",
+        lambda *args: ("Mindnote", "mindnote-token", "# Mindnote\n", {"nodes": 1}),
+    )
+    assets: list[dict[str, Any]] = []
+    warnings: list[str] = []
+
+    result = reader.read_remote(
+        object(),  # type: ignore[arg-type]
+        "https://example.com/mindnotes/mindnote-token",
+        "https://internal-api-space.xfchat.iflytek.com",
+        "csrf-fixture",
+        False,
+        download_images=True,
+        output_root=tmp_path,
+        asset_group="mindnote_1",
+        assets_out=assets,
+        warnings_out=warnings,
+    )
+
+    assert result == (
+        "mindnote",
+        "Mindnote",
+        "mindnote-token",
+        "# Mindnote\n",
+        {"nodes": 1},
+    )
+    assert assets == []
+    assert warnings == []
