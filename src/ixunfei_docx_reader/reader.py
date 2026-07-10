@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 
+from ixunfei_docx_reader.assets import ImageAssetWriter
 from ixunfei_docx_reader.converters.docx_markdown import convert_docx_client_vars
 from ixunfei_docx_reader.converters.docx_markdown import ConversionOptions
 from ixunfei_docx_reader.converters.docx_markdown import extract_text
@@ -790,19 +791,31 @@ def read_remote(
     space_api: str,
     csrf_token: str,
     expand_sheets: bool,
-) -> tuple[str, str, str, str, Counter[str]]:
+    *,
+    download_images: bool = False,
+    output_root: Path | None = None,
+    asset_group: str = "",
+) -> tuple[
+    str,
+    str,
+    str,
+    str,
+    Counter[str],
+    list[dict[str, Any]],
+    list[str],
+]:
     kind = detect_remote_kind(source)
     if kind == "okr":
         title, token, body, counts = read_okr(session, source)
-        return kind, title, token, body, counts
+        return kind, title, token, body, counts, [], []
     if kind == "mindnote":
         title, token, body, counts = read_mindnote(session, source, csrf_token)
-        return kind, title, token, body, counts
+        return kind, title, token, body, counts, [], []
 
     html = fetch_html(session, source, csrf_token)
     if kind == "wiki" and "window.wiki_suite_type = 'bitable'" in html:
         title, token, body, counts = read_bitable_wiki(session, source, html, csrf_token)
-        return "wiki_bitable", title, token, body, counts
+        return "wiki_bitable", title, token, body, counts, [], []
     origin = origin_for(source)
     token = extract_doc_token(source, html)
     data = client_vars(session, space_api, token, origin, csrf_token)
@@ -818,10 +831,27 @@ def read_remote(
         sheet_cache[sheet_block_token] = lines
         return lines
 
+    image_writer: ImageAssetWriter | None = None
+    if download_images:
+        if output_root is None:
+            raise ValueError("download_images requires output_root.")
+        image_writer = ImageAssetWriter(
+            session=session,
+            origin=origin,
+            referer=source,
+            headers=common_headers(origin, csrf_token, source),
+            document_token=token,
+            output_root=output_root,
+            asset_group=asset_group or kind,
+        )
+
     conversion = convert_docx_client_vars(
         data,
         token,
-        ConversionOptions(expand_sheet=sheet_expander if expand_sheets else None),
+        ConversionOptions(
+            expand_sheet=sheet_expander if expand_sheets else None,
+            resolve_image=image_writer.resolve if image_writer is not None else None,
+        ),
     )
     body = conversion.markdown
     counts = conversion.counts
@@ -830,7 +860,7 @@ def read_remote(
     root = data.get("block_map", {}).get(token, {})
     root_data = root.get("data", root) if isinstance(root, dict) else {}
     title = extract_text(root_data) or token if isinstance(root_data, dict) else token
-    return kind, title, token, body, counts
+    return kind, title, token, body, counts, conversion.assets, conversion.warnings
 
 
 def read_local(source: str) -> tuple[str, str]:
@@ -846,7 +876,11 @@ def read_sources(
     cookies_path: Path = Path(DEFAULT_COOKIES),
     space_api: str = DEFAULT_SPACE_API,
     expand_sheets: bool = False,
+    download_images: bool = False,
+    output_root: Path | None = None,
 ) -> list[dict[str, Any]]:
+    if download_images and output_root is None:
+        raise ValueError("download_images requires output_root.")
     remote_sources = [source for source in sources if is_remote(source)]
     session: requests.Session | None = None
     csrf_token = ""
@@ -857,19 +891,24 @@ def read_sources(
             csrf_token = csrf_from(cookies)
 
     results: list[dict[str, Any]] = []
-    for source in sources:
+    for index, source in enumerate(sources, start=1):
         if is_remote(source):
             assert session is not None
-            kind, title, token, content, counts = read_remote(
+            kind_hint = detect_remote_kind(source)
+            kind, title, token, content, counts, assets, warnings = read_remote(
                 session,
                 source,
                 space_api,
                 csrf_token,
                 expand_sheets,
+                download_images=download_images,
+                output_root=output_root,
+                asset_group=f"{kind_hint}_{index}",
             )
         else:
             title, content = read_local(source)
             kind, token, counts = "local_markdown", "", {}
+            assets, warnings = [], []
         results.append(
             {
                 "source": source,
@@ -878,6 +917,8 @@ def read_sources(
                 "token": token,
                 "content": content,
                 "counts": counts,
+                "assets": assets,
+                "warnings": warnings,
             }
         )
     return results
