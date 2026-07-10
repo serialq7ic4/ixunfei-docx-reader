@@ -48,7 +48,7 @@
 手动命令：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.4/ixunfei_docx_reader-0.1.4-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.5/ixunfei_docx_reader-0.1.5-py3-none-any.whl"
 ixfdoc setup skills --runtimes codex --json
 ixfdoc --version
 ```
@@ -62,7 +62,7 @@ ixfdoc --version
 手动命令：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.4/ixunfei_docx_reader-0.1.4-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.5/ixunfei_docx_reader-0.1.5-py3-none-any.whl"
 ixfdoc setup skills --runtimes claude-code --json
 ixfdoc --version
 ```
@@ -70,7 +70,7 @@ ixfdoc --version
 ### 同时安装到两个 agent
 
 ```bash
-python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.4/ixunfei_docx_reader-0.1.4-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[crypto] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.5/ixunfei_docx_reader-0.1.5-py3-none-any.whl"
 ixfdoc setup skills --runtimes auto --json
 ixfdoc --version
 ```
@@ -78,7 +78,7 @@ ixfdoc --version
 Windows cookie 导出目前仍是实验支持。Windows 安装时把 `[crypto]` 换成 `[windows]`：
 
 ```bash
-python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.4/ixunfei_docx_reader-0.1.4-py3-none-any.whl"
+python -m pip install "ixunfei-docx-reader[windows] @ https://github.com/serialq7ic4/ixunfei-docx-reader/releases/download/v0.1.5/ixunfei_docx_reader-0.1.5-py3-none-any.whl"
 ```
 
 `crypto` 用于 macOS cookie 解密。Windows 已有 CI 和单元测试覆盖，但还需要在真实 Windows i讯飞/LarkShell 桌面端登录环境验证后，才会提升为 Tier 1 支持。
@@ -203,7 +203,7 @@ ixfdoc read "<private-link>" \
 
 - i讯飞/LarkShell `docx` 文档。
 - 可解析到受支持文档类型的 i讯飞/LarkShell `wiki` 链接。
-- i讯飞/LarkShell OKR 页面，输出 Objective / Key Result Markdown。
+- i讯飞/LarkShell OKR 页面，按链接中的 `okrId` / `okr_id` 读取对应周期并输出 Objective / Key Result Markdown；`lang`、`open_in_browser`、`tea_from`、`type` 等附加参数不影响读取。
 - 通过受支持文档 payload 暴露出来的 mindnote / 嵌入 sheet 标记。
 - 本地 Markdown 文件，主要用于 skill 和工作流测试。
 
@@ -224,6 +224,8 @@ Linux 不支持，因为 i讯飞没有 Linux 桌面客户端。
 
 - Cookie 导出复用本机桌面端登录态。
 - `doctor` 不会打印 cookie 值。
+- `inspect` 会同时脱敏 OKR 链接中的 owner ID 和 `okrId`。
+- OKR 远程读取错误不会回显原始 API payload。
 - 生成的 Markdown/TSV 可能包含私有文档内容。
 - 不要提交 cookie、生成产物、包含私有链接的日志，或带敏感元数据的诊断输出。
 - 本工具仅用于读取你已获授权访问的文档。请遵守所在组织的数据管理要求。

@@ -33,3 +33,9 @@ More subtypes will be added as remote reading, cookie providers, and diagnostics
 `doctor` is an environment and cookie-file diagnostic. It does not take a source URL and does not read remote document content.
 
 `inspect <source>` is a source-routing diagnostic. It returns safe metadata such as source kind, host, route, token prefix, and token length. For remote sources, it redacts the token from `sourceRef` and does not fetch document content.
+
+For OKR URLs, `inspect` redacts both the owner ID in the URL path and the `okrId` / `okr_id` query value.
+
+## Remote Error Safety
+
+`remote.remote_read_failed` errors provide an operation-level summary and retry guidance. OKR failures do not include raw API payload values, Objective/KR content, or other private response fields.

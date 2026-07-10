@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ixunfei-docx-reader"
-version = "0.1.4"
+version = "0.1.5"
 description = "Read authorized i讯飞/LarkShell documents into agent-friendly Markdown/TSV."
 readme = "README.md"
 requires-python = ">=3.11"

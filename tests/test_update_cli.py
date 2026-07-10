@@ -14,8 +14,8 @@ def test_update_check_json_reports_available_release(
     def fake_get_latest_release(repo: str) -> dict[str, object]:
         assert repo == "owner/project"
         return {
-            "tag_name": "v0.1.5",
-            "html_url": "https://github.com/owner/project/releases/tag/v0.1.5",
+            "tag_name": "v0.1.6",
+            "html_url": "https://github.com/owner/project/releases/tag/v0.1.6",
         }
 
     monkeypatch.setattr(cli, "get_latest_github_release", fake_get_latest_release)
@@ -26,10 +26,10 @@ def test_update_check_json_reports_available_release(
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is True
     assert payload["currentVersion"] == cli.__version__
-    assert payload["latestVersion"] == "0.1.5"
-    assert payload["latestTag"] == "v0.1.5"
+    assert payload["latestVersion"] == "0.1.6"
+    assert payload["latestTag"] == "v0.1.6"
     assert payload["updateAvailable"] is True
-    assert payload["releaseUrl"] == "https://github.com/owner/project/releases/tag/v0.1.5"
+    assert payload["releaseUrl"] == "https://github.com/owner/project/releases/tag/v0.1.6"
     assert "pip install --upgrade" in payload["installCommand"]
 
 

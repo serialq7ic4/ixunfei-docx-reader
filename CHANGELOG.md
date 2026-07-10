@@ -6,9 +6,20 @@ This project keeps changelog entries human-written and release-focused. Update t
 
 ## Unreleased
 
+## v0.1.5 - 2026-07-10
+
 ### Added
 
 - Added bilingual contribution guidelines plus GitHub issue and pull request templates with privacy-safe reporting requirements.
+
+### Changed
+
+- Updated the test configuration so source-checkout verification imports the working tree package instead of a previously installed wheel.
+
+### Security
+
+- Redacted both owner IDs and OKR IDs from `ixfdoc inspect` OKR source summaries.
+- Stopped including raw OKR API payloads in remote read errors.
 
 ## v0.1.4 - 2026-07-09
 

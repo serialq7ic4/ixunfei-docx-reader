@@ -5,7 +5,7 @@
 ## Command Boundaries
 
 - `ixfdoc doctor` checks the local runtime and cookie metadata. It does not inspect a specific document.
-- `ixfdoc inspect <source>` prints a safe routing summary for one source. It does not read document content and redacts full remote tokens.
+- `ixfdoc inspect <source>` prints a safe routing summary for one source. It does not read document content and redacts full remote tokens plus OKR owner IDs.
 - `ixfdoc read <source>...` performs the actual read and writes Markdown/TSV artifacts when `--out-dir` is supplied.
 
 ## Source Coverage
@@ -15,7 +15,7 @@
 | Local Markdown | Copies the source content into the output artifact |
 | Docx URL | Fetches docx client variables and renders Markdown |
 | Wiki URL | Resolves the wiki target, then reads the supported document payload |
-| OKR URL | Renders objectives and key results as Markdown |
+| OKR URL | Reads the exact `okrId` / `okr_id` from the URL and renders its objectives and key results as Markdown; unrelated query parameters are ignored |
 | Mindnote URL | Renders mindnote nodes as nested Markdown bullets |
 | Bitable wiki | Renders the selected table view as TSV in Markdown |
 | Embedded sheet | Expands supported sheets as TSV when `--expand-sheets` is set |
@@ -42,5 +42,6 @@
 ## Safety
 
 - Cookie values are never printed by diagnostics.
-- Remote source summaries redact full tokens.
+- Remote source summaries redact full tokens and OKR owner IDs.
+- Remote OKR errors do not include raw API payload values.
 - Generated Markdown and TSV files may contain private document content and should be treated as sensitive local artifacts.
