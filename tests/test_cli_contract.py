@@ -1,4 +1,5 @@
 import json
+import os
 import sqlite3
 import subprocess
 import sys
@@ -8,12 +9,17 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
+TEST_ENV = {
+    **os.environ,
+    "PYTHONPATH": str(ROOT / "src"),
+}
 
 
 def run_module(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, "-m", "ixunfei_docx_reader.cli", *args],
         cwd=ROOT,
+        env=TEST_ENV,
         text=True,
         capture_output=True,
         check=False,
