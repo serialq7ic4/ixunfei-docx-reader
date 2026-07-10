@@ -7,9 +7,30 @@ from typing import Any, Callable
 
 
 @dataclass(frozen=True)
+class ImageReference:
+    block_id: str
+    token: str
+    name: str
+    mime_type: str
+    width: int | None
+    height: int | None
+    declared_size: int | None
+    caption: str
+
+
+@dataclass(frozen=True)
+class ImageResolution:
+    markdown_path: str | None
+    alt_text: str
+    asset: dict[str, Any] | None = None
+    warning: str | None = None
+
+
+@dataclass(frozen=True)
 class ConversionOptions:
     expand_sheet: Callable[[str], str | list[str]] | None = None
     asset_mode: str = "placeholder"
+    resolve_image: Callable[[ImageReference], ImageResolution] | None = None
 
 
 @dataclass(frozen=True)
@@ -45,6 +66,7 @@ def convert_docx_client_vars(
     tree = build_block_tree(client_vars_data, obj_token)
     render_options = options or ConversionOptions()
     ordered_counters: dict[str, int] = {}
+    assets: list[dict[str, Any]] = []
     warnings: list[str] = []
     seen: set[str] = set()
     parts: list[str] = []
@@ -59,6 +81,7 @@ def convert_docx_client_vars(
             block_id,
             0,
             seen,
+            assets,
             warnings,
             render_options,
             ordered_counters,
@@ -72,7 +95,7 @@ def convert_docx_client_vars(
     return ConversionResult(
         markdown=markdown,
         counts=count_block_types(tree.blocks),
-        assets=[],
+        assets=assets,
         warnings=warnings,
     )
 
@@ -139,7 +162,10 @@ def find_root_id(blocks: dict[str, Block], obj_token: str) -> str | None:
 
 
 def extract_text(data: dict[str, Any]) -> str:
-    text_obj = data.get("text")
+    return extract_attributed_text(data.get("text"))
+
+
+def extract_attributed_text(text_obj: Any) -> str:
     if text_obj is None:
         return ""
     if isinstance(text_obj, str):
@@ -230,6 +256,7 @@ def render_block(
     block_id: str,
     depth: int,
     seen: set[str],
+    assets: list[dict[str, Any]],
     warnings: list[str],
     options: ConversionOptions,
     ordered_counters: dict[str, int],
@@ -242,7 +269,16 @@ def render_block(
         return ""
 
     if block.type == "page":
-        return render_children(tree, block, depth, seen, warnings, options, ordered_counters)
+        return render_children(
+            tree,
+            block,
+            depth,
+            seen,
+            assets,
+            warnings,
+            options,
+            ordered_counters,
+        )
     if block.type.startswith("heading"):
         level_match = re.search(r"(\d+)$", block.type)
         level = min(int(level_match.group(1)) if level_match else 1, 6)
@@ -251,7 +287,16 @@ def render_block(
         return block.text
     if block.type == "bullet":
         line = f"{'  ' * depth}- {block.text}".rstrip()
-        children = render_children(tree, block, depth + 1, seen, warnings, options, ordered_counters)
+        children = render_children(
+            tree,
+            block,
+            depth + 1,
+            seen,
+            assets,
+            warnings,
+            options,
+            ordered_counters,
+        )
         return "\n\n".join(part for part in [line, children] if part.strip())
     if block.type == "ordered":
         parent_key = block.parent_id or "__root__"
@@ -266,12 +311,30 @@ def render_block(
     if block.type == "divider":
         return "---"
     if block.type == "quote_container":
-        inner = render_children(tree, block, depth, seen, warnings, options, ordered_counters)
+        inner = render_children(
+            tree,
+            block,
+            depth,
+            seen,
+            assets,
+            warnings,
+            options,
+            ordered_counters,
+        )
         if not inner.strip():
             return ">"
         return "\n".join(f"> {line}" if line else ">" for line in inner.splitlines())
     if block.type == "callout":
-        children = render_children(tree, block, depth + 1, seen, warnings, options, ordered_counters)
+        children = render_children(
+            tree,
+            block,
+            depth + 1,
+            seen,
+            assets,
+            warnings,
+            options,
+            ordered_counters,
+        )
         return "\n\n".join(part for part in ["[callout]", children.rstrip()] if part.strip())
     if block.type == "sheet":
         token = str(block.raw.get("token", "") or "")
@@ -282,12 +345,23 @@ def render_block(
         expanded_text = "\n".join(expanded) if isinstance(expanded, list) else str(expanded)
         return "\n".join(part for part in [marker, expanded_text.strip()] if part.strip())
     if block.type == "table":
-        return render_table(tree, block, seen, warnings, options, ordered_counters)
-    if block.type in {"table_cell", "whiteboard", "image", "mindnote", "isv"}:
+        return render_table(tree, block, seen, assets, warnings, options, ordered_counters)
+    if block.type == "image":
+        return render_image(block, assets, warnings, options)
+    if block.type in {"table_cell", "whiteboard", "mindnote", "isv"}:
         return f"[{block.type}]"
 
     child_depth = depth + (1 if block.type else 0)
-    children = render_children(tree, block, child_depth, seen, warnings, options, ordered_counters)
+    children = render_children(
+        tree,
+        block,
+        child_depth,
+        seen,
+        assets,
+        warnings,
+        options,
+        ordered_counters,
+    )
     if block.type not in {"unknown", ""}:
         warning = f"unsupported block type: {block.type}"
         if warning not in warnings:
@@ -299,6 +373,7 @@ def render_table(
     tree: BlockTree,
     block: Block,
     seen: set[str],
+    assets: list[dict[str, Any]],
     warnings: list[str],
     options: ConversionOptions,
     ordered_counters: dict[str, int],
@@ -315,7 +390,15 @@ def render_table(
         for column_id in columns:
             cell_id = table_cell_block_id(cell_set, row_id, column_id)
             rendered_row.append(
-                render_table_cell(tree, cell_id, seen, warnings, options, ordered_counters)
+                render_table_cell(
+                    tree,
+                    cell_id,
+                    seen,
+                    assets,
+                    warnings,
+                    options,
+                    ordered_counters,
+                )
             )
         rendered_rows.append(rendered_row)
 
@@ -347,6 +430,7 @@ def render_table_cell(
     tree: BlockTree,
     cell_id: str,
     seen: set[str],
+    assets: list[dict[str, Any]],
     warnings: list[str],
     options: ConversionOptions,
     ordered_counters: dict[str, int],
@@ -354,8 +438,49 @@ def render_table_cell(
     cell = tree.blocks.get(cell_id)
     if cell is None:
         return ""
-    rendered = render_children(tree, cell, 0, seen, warnings, options, ordered_counters)
+    rendered = render_children(
+        tree,
+        cell,
+        0,
+        seen,
+        assets,
+        warnings,
+        options,
+        ordered_counters,
+    )
     return normalize_table_cell(rendered or cell.text)
+
+
+def render_image(
+    block: Block,
+    assets: list[dict[str, Any]],
+    warnings: list[str],
+    options: ConversionOptions,
+) -> str:
+    if options.resolve_image is None:
+        return "[image]"
+
+    image = block.raw.get("image", {})
+    image_data = image if isinstance(image, dict) else {}
+    resolution = options.resolve_image(
+        ImageReference(
+            block_id=block.id,
+            token=str(image_data.get("token", "") or ""),
+            name=str(block.raw.get("name", "") or ""),
+            mime_type=str(block.raw.get("mimeType", "") or ""),
+            width=read_optional_int(block.raw.get("width")),
+            height=read_optional_int(block.raw.get("height")),
+            declared_size=read_optional_int(block.raw.get("size")),
+            caption=extract_attributed_text(block.raw.get("caption")),
+        )
+    )
+    if resolution.asset is not None:
+        assets.append(resolution.asset)
+    if resolution.warning:
+        warnings.append(resolution.warning)
+    if not resolution.markdown_path:
+        return "[image]"
+    return f"![{resolution.alt_text}]({resolution.markdown_path})"
 
 
 def normalize_table_cell(value: str) -> str:
@@ -377,6 +502,15 @@ def read_bool(value: Any) -> bool:
     return bool(value)
 
 
+def read_optional_int(value: Any) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def markdown_table_row(values: list[str]) -> str:
     return "| " + " | ".join(values) + " |"
 
@@ -386,12 +520,22 @@ def render_children(
     block: Block,
     depth: int,
     seen: set[str],
+    assets: list[dict[str, Any]],
     warnings: list[str],
     options: ConversionOptions,
     ordered_counters: dict[str, int],
 ) -> str:
     parts = [
-        render_block(tree, child_id, depth, seen, warnings, options, ordered_counters)
+        render_block(
+            tree,
+            child_id,
+            depth,
+            seen,
+            assets,
+            warnings,
+            options,
+            ordered_counters,
+        )
         for child_id in block.children
     ]
     return "\n\n".join(part.rstrip() for part in parts if part.strip())

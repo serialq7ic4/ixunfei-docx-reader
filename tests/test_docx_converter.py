@@ -1,7 +1,13 @@
+import json
 from collections import Counter
+from dataclasses import FrozenInstanceError
+
+import pytest
 
 from ixunfei_docx_reader.converters.docx_markdown import (
     ConversionOptions,
+    ImageReference,
+    ImageResolution,
     convert_docx_client_vars,
 )
 
@@ -231,6 +237,119 @@ def test_convert_docx_client_vars_preserves_resource_markers() -> None:
     assert result.markdown == "[table]\n\n[image]\n\n[mindnote]\n"
     assert result.counts == Counter({"page": 1, "table": 1, "image": 1, "mindnote": 1})
     assert result.warnings == []
+
+
+def test_convert_docx_client_vars_resolves_image_metadata_and_renders_markdown() -> None:
+    token = "raw-image-token"
+    client_vars = {
+        "block_map": {
+            "page_1": {"data": {"type": "page", "children": ["image_1"]}},
+            "image_1": {
+                "data": {
+                    "type": "image",
+                    "parent_id": "page_1",
+                    "image": {"token": token},
+                    "name": "architecture.png",
+                    "mimeType": "image/png",
+                    "width": 1200,
+                    "height": 800,
+                    "size": 1234,
+                    "caption": {
+                        "initialAttributedTexts": {
+                            "text": {"0": "Architecture diagram"},
+                        }
+                    },
+                }
+            },
+        }
+    }
+    resolution = ImageResolution(
+        markdown_path="assets/docx_1/image-001.png",
+        alt_text="Architecture diagram",
+        asset={
+            "path": "assets/docx_1/image-001.png",
+            "mimeType": "image/png",
+            "width": 1200,
+            "height": 800,
+            "sizeBytes": 1234,
+            "status": "downloaded",
+            "ordinal": 1,
+        },
+    )
+    received_references: list[ImageReference] = []
+
+    def resolve_image(
+        reference: ImageReference,
+    ) -> ImageResolution:
+        received_references.append(reference)
+        return resolution
+
+    result = convert_docx_client_vars(
+        client_vars,
+        "page_1",
+        ConversionOptions(resolve_image=resolve_image),
+    )
+
+    assert received_references == [
+        ImageReference(
+            block_id="image_1",
+            token=token,
+            name="architecture.png",
+            mime_type="image/png",
+            width=1200,
+            height=800,
+            declared_size=1234,
+            caption="Architecture diagram",
+        )
+    ]
+    assert result.markdown == "![Architecture diagram](assets/docx_1/image-001.png)\n"
+    assert result.assets == [resolution.asset]
+    assert result.warnings == []
+    assert token not in result.markdown
+    assert token not in json.dumps(result.assets, sort_keys=True)
+    with pytest.raises(FrozenInstanceError):
+        received_references[0].token = "changed"
+    with pytest.raises(FrozenInstanceError):
+        resolution.alt_text = "changed"
+
+
+def test_convert_docx_client_vars_preserves_image_marker_and_collects_warning_without_path() -> None:
+    token = "raw-image-token"
+    client_vars = {
+        "block_map": {
+            "page_1": {"data": {"type": "page", "children": ["image_1"]}},
+            "image_1": {
+                "data": {
+                    "type": "image",
+                    "parent_id": "page_1",
+                    "image": {"token": token},
+                    "caption": {
+                        "initialAttributedTexts": {
+                            "text": {"0": "Architecture diagram"},
+                        }
+                    },
+                }
+            },
+        }
+    }
+
+    result = convert_docx_client_vars(
+        client_vars,
+        "page_1",
+        ConversionOptions(
+            resolve_image=lambda _reference: ImageResolution(
+                markdown_path=None,
+                alt_text="Architecture diagram",
+                warning="image 1 download failed: http_error",
+            )
+        ),
+    )
+
+    assert result.markdown == "[image]\n"
+    assert result.assets == []
+    assert result.warnings == ["image 1 download failed: http_error"]
+    assert token not in result.markdown
+    assert token not in json.dumps(result.warnings)
 
 
 def test_convert_docx_client_vars_renders_simple_tables() -> None:
