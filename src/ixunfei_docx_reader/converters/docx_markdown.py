@@ -462,18 +462,24 @@ def render_image(
 
     image = block.raw.get("image", {})
     image_data = image if isinstance(image, dict) else {}
-    resolution = options.resolve_image(
-        ImageReference(
-            block_id=block.id,
-            token=str(image_data.get("token", "") or ""),
-            name=str(block.raw.get("name", "") or ""),
-            mime_type=str(block.raw.get("mimeType", "") or ""),
-            width=read_optional_int(block.raw.get("width")),
-            height=read_optional_int(block.raw.get("height")),
-            declared_size=read_optional_int(block.raw.get("size")),
-            caption=extract_attributed_text(block.raw.get("caption")),
-        )
+    reference = ImageReference(
+        block_id=block.id,
+        token=str(image_data.get("token", "") or ""),
+        name=str(image_data.get("name", "") or ""),
+        mime_type=str(image_data.get("mimeType", "") or ""),
+        width=read_optional_int(image_data.get("width")),
+        height=read_optional_int(image_data.get("height")),
+        declared_size=read_optional_int(image_data.get("size")),
+        caption=extract_attributed_text(image_data.get("caption")),
     )
+    try:
+        resolution = options.resolve_image(reference)
+    except Exception:
+        warnings.append("image resolution failed")
+        return "[image]"
+    if image_resolution_contains_token(resolution, reference.token):
+        warnings.append("image resolution rejected unsafe output")
+        return "[image]"
     if resolution.asset is not None:
         assets.append(resolution.asset)
     if resolution.warning:
@@ -481,6 +487,33 @@ def render_image(
     if not resolution.markdown_path:
         return "[image]"
     return f"![{resolution.alt_text}]({resolution.markdown_path})"
+
+
+def image_resolution_contains_token(resolution: ImageResolution, token: str) -> bool:
+    if not token:
+        return False
+    return any(
+        value_contains_token(value, token)
+        for value in (
+            resolution.markdown_path,
+            resolution.alt_text,
+            resolution.asset,
+            resolution.warning,
+        )
+    )
+
+
+def value_contains_token(value: Any, token: str) -> bool:
+    if isinstance(value, str):
+        return token in value
+    if isinstance(value, dict):
+        return any(
+            value_contains_token(key, token) or value_contains_token(item, token)
+            for key, item in value.items()
+        )
+    if isinstance(value, (list, tuple, set)):
+        return any(value_contains_token(item, token) for item in value)
+    return False
 
 
 def normalize_table_cell(value: str) -> str:

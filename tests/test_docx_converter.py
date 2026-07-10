@@ -248,16 +248,18 @@ def test_convert_docx_client_vars_resolves_image_metadata_and_renders_markdown()
                 "data": {
                     "type": "image",
                     "parent_id": "page_1",
-                    "image": {"token": token},
-                    "name": "architecture.png",
-                    "mimeType": "image/png",
-                    "width": 1200,
-                    "height": 800,
-                    "size": 1234,
-                    "caption": {
-                        "initialAttributedTexts": {
-                            "text": {"0": "Architecture diagram"},
-                        }
+                    "image": {
+                        "token": token,
+                        "name": "architecture.png",
+                        "mimeType": "image/png",
+                        "width": 1200,
+                        "height": 800,
+                        "size": 1234,
+                        "caption": {
+                            "initialAttributedTexts": {
+                                "text": {"0": "Architecture diagram"},
+                            }
+                        },
                     },
                 }
             },
@@ -350,6 +352,98 @@ def test_convert_docx_client_vars_preserves_image_marker_and_collects_warning_wi
     assert result.warnings == ["image 1 download failed: http_error"]
     assert token not in result.markdown
     assert token not in json.dumps(result.warnings)
+
+
+def test_convert_docx_client_vars_preserves_image_marker_when_resolver_raises() -> None:
+    token = "raw-image-token"
+    client_vars = {
+        "block_map": {
+            "page_1": {"data": {"type": "page", "children": ["image_1"]}},
+            "image_1": {
+                "data": {
+                    "type": "image",
+                    "parent_id": "page_1",
+                    "image": {"token": token},
+                }
+            },
+        }
+    }
+
+    def resolve_image(_reference: ImageReference) -> ImageResolution:
+        raise RuntimeError(f"download failed for {token}: private resolver detail")
+
+    result = convert_docx_client_vars(
+        client_vars,
+        "page_1",
+        ConversionOptions(resolve_image=resolve_image),
+    )
+
+    assert result.markdown == "[image]\n"
+    assert result.assets == []
+    assert result.warnings == ["image resolution failed"]
+    serialized_warnings = json.dumps(result.warnings)
+    assert token not in serialized_warnings
+    assert "private resolver detail" not in serialized_warnings
+
+
+@pytest.mark.parametrize(
+    "leak_target",
+    ["markdown_path", "alt_text", "asset", "warning"],
+)
+def test_convert_docx_client_vars_rejects_resolver_output_containing_image_token(
+    leak_target: str,
+) -> None:
+    token = "raw-image-token"
+    client_vars = {
+        "block_map": {
+            "page_1": {"data": {"type": "page", "children": ["image_1"]}},
+            "image_1": {
+                "data": {
+                    "type": "image",
+                    "parent_id": "page_1",
+                    "image": {"token": token},
+                }
+            },
+        }
+    }
+    resolution_values = {
+        "markdown_path": "assets/docx_1/image-001.png",
+        "alt_text": "Architecture diagram",
+        "asset": {
+            "path": "assets/docx_1/image-001.png",
+            "status": "downloaded",
+        },
+        "warning": None,
+    }
+    if leak_target == "markdown_path":
+        resolution_values["markdown_path"] = f"assets/{token}/image-001.png"
+    elif leak_target == "alt_text":
+        resolution_values["alt_text"] = f"Architecture diagram {token}"
+    elif leak_target == "asset":
+        resolution_values["asset"] = {"source": {"resourceToken": token}}
+    else:
+        resolution_values["warning"] = f"image resolution failed for {token}"
+
+    result = convert_docx_client_vars(
+        client_vars,
+        "page_1",
+        ConversionOptions(
+            resolve_image=lambda _reference: ImageResolution(**resolution_values),
+        ),
+    )
+
+    assert result.markdown == "[image]\n"
+    assert result.assets == []
+    assert result.warnings == ["image resolution rejected unsafe output"]
+    serialized_result = json.dumps(
+        {
+            "markdown": result.markdown,
+            "assets": result.assets,
+            "warnings": result.warnings,
+        },
+        sort_keys=True,
+    )
+    assert token not in serialized_result
 
 
 def test_convert_docx_client_vars_renders_simple_tables() -> None:
