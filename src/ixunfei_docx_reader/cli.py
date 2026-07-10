@@ -349,11 +349,15 @@ def inspect_remote_source(source: str) -> dict[str, object]:
     path = parsed.path
     path_type = "remote"
     token = ""
+    owner_id = ""
     kind = "remote"
     route = "remote_read"
 
     if "/okr/user/" in path:
         path_type = "okr"
+        owner_match = re.search(r"/okr/user/([^/?#]+)", path)
+        if owner_match:
+            owner_id = owner_match.group(1)
         query = parse_qs(parsed.query)
         token = (query.get("okrId") or query.get("okr_id") or [""])[0]
     else:
@@ -379,7 +383,12 @@ def inspect_remote_source(source: str) -> dict[str, object]:
 
     return {
         "ok": True,
-        "sourceRef": redacted_remote_source(parsed.path, parsed.netloc, parsed.query, token),
+        "sourceRef": redacted_remote_source(
+            parsed.path,
+            parsed.netloc,
+            parsed.query,
+            [owner_id, token],
+        ),
         "remote": True,
         "kind": kind,
         "host": parsed.netloc,
@@ -390,9 +399,19 @@ def inspect_remote_source(source: str) -> dict[str, object]:
     }
 
 
-def redacted_remote_source(path: str, netloc: str, query: str, token: str) -> str:
-    redacted_path = path.replace(token, "<redacted>", 1) if token else path
-    redacted_query = query.replace(token, "<redacted>", 1) if token else query
+def redacted_remote_source(
+    path: str,
+    netloc: str,
+    query: str,
+    tokens: list[str],
+) -> str:
+    redacted_path = path
+    redacted_query = query
+    for token in tokens:
+        if not token:
+            continue
+        redacted_path = redacted_path.replace(token, "<redacted>")
+        redacted_query = redacted_query.replace(token, "<redacted>")
     suffix = f"?{redacted_query}" if redacted_query else ""
     return f"https://{netloc}{redacted_path}{suffix}"
 
