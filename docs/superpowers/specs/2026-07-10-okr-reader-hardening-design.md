@@ -2,17 +2,14 @@
 
 ## Goal
 
-Improve the safety and robustness of OKR reads while preserving the current contract: `ixfdoc` reads exactly the OKR period identified by the `okrId` or `okr_id` in the user-provided URL.
+Fix two privacy risks in OKR diagnostics and remote error handling while preserving the current contract: `ixfdoc` reads exactly the OKR period identified by the `okrId` or `okr_id` in the user-provided URL.
 
 ## Scope
 
 - Continue using `/okrx/api/okr/owner/aggr_detail/` as the only OKR content endpoint.
 - Ignore unrelated URL parameters such as `lang`, `open_in_browser`, `tea_from`, and `type`.
 - Redact both the owner ID in `/okr/user/<owner-id>/` and the OKR ID in query parameters from `inspect` output.
-- Replace raw OKR API payloads in errors with a safe summary containing only the operation, response code, and server message.
-- Parse all supported rich-text zones rather than only zone `0`.
-- Accept dictionary, numeric, and numeric-string progress values.
-- Preserve Objective/KR structure without exposing internal IDs when text is empty.
+- Replace raw OKR API payloads in errors with a safe summary containing only the operation and response code.
 - Add focused regression tests and update user-facing documentation.
 
 ## Non-Goals
@@ -22,6 +19,7 @@ Improve the safety and robustness of OKR reads while preserving the current cont
 - Reading all periods from one owner URL.
 - Fetching comments, progress history, references, permissions, or operation logs.
 - Adding OKR write support to `ixfdoc`.
+- Changing rich-text, progress, or empty Objective/KR rendering.
 
 ## Architecture
 
@@ -33,23 +31,7 @@ The existing `/okr/user/` route detection remains unchanged. `okr_id_from_url` c
 
 ### API Errors
 
-`read_okr` will not interpolate the complete response payload into exceptions. A small helper will extract only safe scalar fields such as `code` and `message`. Unexpected response shapes will report the top-level field names rather than their values.
-
-### Content Normalization
-
-`text_from_rich_value` will normalize:
-
-- plain strings;
-- legacy `blocks` arrays;
-- JSON-encoded rich-text values;
-- all zoned delta objects containing `ops`;
-- string inserts and safe text-like object inserts.
-
-Zones will be processed in stable key order. Zero-width characters and trailing newlines will be removed without collapsing intentional line breaks.
-
-`okr_progress_text` will support the existing `{ "percent": value }` structure plus direct numeric or numeric-string values.
-
-When an Objective or KR has no readable text, the renderer will use a neutral `(untitled)` placeholder instead of exposing its internal ID.
+`read_okr` will not interpolate the complete response payload into exceptions. Non-zero responses will report the operation and response code. Unexpected response shapes will report the top-level field names rather than their values.
 
 ## CLI Contract
 
@@ -70,9 +52,6 @@ Tests will cover:
 - URLs containing unrelated query parameters;
 - safe non-zero API errors without private payload content;
 - unexpected response shape errors without raw values;
-- JSON-encoded and multi-zone rich text;
-- numeric, numeric-string, zero, and decimal progress;
-- empty Objective/KR text without internal ID leakage;
 - preservation of the existing basic OKR rendering contract.
 
 ## Documentation and Release
