@@ -2,6 +2,11 @@
 
 **简体中文** | [English](README.en.md)
 
+> **维护状态：已被 `ixf-toolbox` 取代。** 新安装和后续功能请使用
+> [`ixf-toolbox`](https://github.com/serialq7ic4/ixf-toolbox)。迁移命令映射见
+> [`docs/migration-from-legacy.md`](https://github.com/serialq7ic4/ixf-toolbox/blob/main/docs/migration-from-legacy.md)。
+> 本仓库保留最后的 `ixfdoc` 实现用于历史兼容，不再规划新功能。
+
 让 Codex、Claude Code 等本地 coding agent 读取已授权访问的 i讯飞/LarkShell 私有文档，并转换为本地 Markdown/TSV 供分析使用。
 
 > 面向 Codex / Claude Code 使用，`ixfdoc` 作为本地执行引擎；复用本机登录态，无服务端，无遥测，不需要飞书开放平台应用。

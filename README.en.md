@@ -2,6 +2,13 @@
 
 **English** | [简体中文](README.md)
 
+> **Maintenance status: superseded by `ixf-toolbox`.** New installs and future
+> feature work should use [`ixf-toolbox`](https://github.com/serialq7ic4/ixf-toolbox).
+> See the
+> [`docs/migration-from-legacy.md`](https://github.com/serialq7ic4/ixf-toolbox/blob/main/docs/migration-from-legacy.md)
+> command mapping. This repository keeps the final `ixfdoc` implementation for
+> historical compatibility and is not expected to receive new features.
+
 Let Codex, Claude Code, and other local coding agents read authorized i讯飞/LarkShell private documents as local Markdown/TSV artifacts.
 
 > Built for Codex / Claude Code usage, with `ixfdoc` as the local execution engine. Local-session based, no server, no telemetry, no Open Platform app required.

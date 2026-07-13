@@ -6,6 +6,10 @@ This project keeps changelog entries human-written and release-focused. Update t
 
 ## Unreleased
 
+### Changed
+
+- Marked the project as superseded by `ixf-toolbox` and linked the legacy command migration guide.
+
 ## v0.1.6 - 2026-07-10
 
 ### Added
